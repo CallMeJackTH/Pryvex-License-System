@@ -134,17 +134,33 @@
     renderLicenses();
   }
 
+  let sessionUpdateId = 0;
   async function updateSession(nextSession) {
+    const updateId = ++sessionUpdateId;
     session = nextSession;
-    const signedIn = !!session;
+    const signedIn = !!session?.access_token;
+
     $("login-panel").hidden = signedIn;
     $("dashboard").hidden = !signedIn;
-    $("session-state").textContent = signedIn ? "Signed in" : "Signed out";
-    if (signedIn) {
-      try { await refresh(); }
-      catch (error) { message(error.message); }
-    } else {
+    $("session-state").textContent = signedIn ? "Signed in — checking admin access…" : "Signed out";
+
+    if (!signedIn) {
       licenseCache = [];
+      return;
+    }
+
+    try {
+      await refresh();
+      if (updateId !== sessionUpdateId) return;
+      $("session-state").textContent = "Admin verified";
+      $("login-message").textContent = "";
+    } catch (error) {
+      if (updateId !== sessionUpdateId) return;
+      $("session-state").textContent = "Access denied";
+      message(error.message);
+      if (/not authorized|invalid session|authentication required/i.test(error.message)) {
+        $("login-message").textContent = "Discord login succeeded, but this Discord account is not authorized as an administrator. Check ADMIN_DISCORD_IDS on the license API.";
+      }
     }
   }
 
@@ -202,8 +218,22 @@
   $("search-input").addEventListener("input", renderLicenses);
   $("status-filter").addEventListener("change", renderLicenses);
 
+  // Keep the auth callback synchronous; defer UI/API work until Supabase releases its auth lock.
   supabase.auth.onAuthStateChange((_event, nextSession) => {
-    updateSession(nextSession);
+    queueMicrotask(() => { void updateSession(nextSession); });
   });
-  supabase.auth.getSession().then(({ data }) => updateSession(data.session));
+
+  supabase.auth.getSession()
+    .then(({ data, error }) => {
+      if (error) throw error;
+      return updateSession(data.session);
+    })
+    .catch(error => {
+      $("login-message").textContent = "Could not restore your login session: " + error.message;
+    });
+
+  // OAuth can return provider errors in the URL query string.
+  const params = new URLSearchParams(window.location.search);
+  const authError = params.get("error_description") || params.get("error");
+  if (authError) $("login-message").textContent = decodeURIComponent(authError.replace(/\\+/g, " "));
 })();
