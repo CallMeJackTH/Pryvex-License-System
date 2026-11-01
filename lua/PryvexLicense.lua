@@ -9,7 +9,12 @@ local SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6tWpyvbWT0rbifARzeI0og_zaPbEAlG
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local SESSION_ID = HttpService:GenerateGUID(false)
+local env = (getgenv and getgenv()) or _G
+local SESSION_ID = env._PryvexSessionId
+if type(SESSION_ID) ~= "string" or #SESSION_ID < 8 then
+    SESSION_ID = HttpService:GenerateGUID(false)
+    env._PryvexSessionId = SESSION_ID
+end
 
 local function getRequestFunction()
     if typeof(request) == "function" then return request end
@@ -149,6 +154,8 @@ function License.startMonitor(onRevoked, intervalSeconds)
             if valid and details and details.kick_requested == true then
                 License._monitorRunning = false
                 local kickMessage = details.kick_message or "An administrator disconnected this session."
+                local env = (getgenv and getgenv()) or _G
+                env._PryvexSessionId = nil
                 if type(onRevoked) == "function" then
                     pcall(onRevoked, "ADMIN_KICK", kickMessage)
                 end
