@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
       // Register this Roblox client session for the admin's live-user list.
       const sessionId = String(body.session_id ?? "");
       const robloxUsername = String(body.roblox_username ?? "").trim().slice(0, 32);
+      const robloxDisplayName = String(body.roblox_display_name ?? body.roblox_username ?? "").trim().slice(0, 64);
       const robloxUserId = Number(body.roblox_user_id ?? 0);
       if (/^[0-9a-f-]{36}$/i.test(sessionId) && robloxUsername) {
         const { data: liveSession, error: sessionError } = await db
@@ -187,6 +188,7 @@ Deno.serve(async (req) => {
             device_hash: deviceHash,
             roblox_user_id: Number.isSafeInteger(robloxUserId) && robloxUserId > 0 ? robloxUserId : null,
             roblox_username: robloxUsername,
+            roblox_display_name: robloxDisplayName,
             place_id: Number.isSafeInteger(Number(body.place_id)) && Number(body.place_id) > 0 ? Number(body.place_id) : null,
             game_id: String(body.game_id ?? "").slice(0, 128) || null,
             last_seen_at: new Date().toISOString()
@@ -253,7 +255,7 @@ Deno.serve(async (req) => {
       const cutoff = new Date(Date.now() - 60_000).toISOString();
       const { data: sessions, error: sessionsError } = await db
         .from("license_active_sessions")
-        .select("session_id,license_id,roblox_user_id,roblox_username,place_id,game_id,last_seen_at,kick_requested")
+        .select("session_id,license_id,roblox_user_id,roblox_username,roblox_display_name,place_id,game_id,last_seen_at,kick_requested")
         .gte("last_seen_at", cutoff)
         .order("last_seen_at", { ascending: false })
         .limit(500);
