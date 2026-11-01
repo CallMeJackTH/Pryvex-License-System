@@ -1,4 +1,5 @@
 -- Pryvex License client helper.
+-- Periodically re-checks the license so server-side disable/delete takes effect in-session.
 -- DeviceId is client-reported and can be spoofed; it is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
@@ -40,19 +41,17 @@ end
 
 local License = {}
 
-function License.verify()
+local function checkLicense()
     local env = getgenv and getgenv() or _G
     local key = env.Key
     local deviceId = env.DeviceId
     local discordId = env.id
 
     if type(key) ~= "string" or key == "" then
-        warn("[Pryvex] Set getgenv().Key before loading.")
-        return false
+        return false, "KEY_INVALID", "Invalid license key"
     end
     if type(deviceId) ~= "string" or #deviceId < 8 then
-        warn("[Pryvex] Set a stable getgenv().DeviceId (minimum 8 characters).")
-        return false
+        return false, "DEVICE_INVALID", "Invalid device identifier"
     end
 
     local result, err = postJson(API_URL, {
@@ -63,12 +62,54 @@ function License.verify()
     })
 
     if not result or result.valid ~= true or result.plan ~= "premium" then
-        warn("[Pryvex] " .. tostring(err or (result and result.error) or "A valid Premium license is required."))
-        return false
+        return false,
+            result and result.code or "NETWORK_ERROR",
+            result and result.error or err or "License verification failed"
+    end
+
+    return true, nil, nil
+end
+
+function License.verify()
+    local valid, code, message = checkLicense()
+    if not valid then
+        warn("[Pryvex] " .. tostring(message))
+        return false, code, message
     end
 
     print("[Pryvex] Premium license verified.")
     return true
+end
+
+function License.startMonitor(onRevoked, intervalSeconds)
+    intervalSeconds = math.max(15, tonumber(intervalSeconds) or 30)
+
+    if License._monitorRunning then
+        return false
+    end
+    License._monitorRunning = true
+
+    task.spawn(function()
+        while License._monitorRunning do
+            task.wait(intervalSeconds)
+            if not License._monitorRunning then break end
+
+            local valid, code, message = checkLicense()
+            if not valid then
+                License._monitorRunning = false
+                if type(onRevoked) == "function" then
+                    pcall(onRevoked, code, message)
+                end
+                break
+            end
+        end
+    end)
+
+    return true
+end
+
+function License.stopMonitor()
+    License._monitorRunning = false
 end
 
 return License
