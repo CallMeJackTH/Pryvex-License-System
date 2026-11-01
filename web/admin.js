@@ -62,6 +62,73 @@
     return data;
   }
 
+  async function refreshSessions() {
+    const data = await api("list_sessions");
+    const sessions = data.sessions || [];
+    const tbody = $("session-rows");
+    tbody.replaceChildren();
+
+    if (!sessions.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.textContent = "No players currently reporting an active session.";
+      tr.append(td);
+      tbody.append(tr);
+      return;
+    }
+
+    for (const item of sessions) {
+      const tr = document.createElement("tr");
+      const player = document.createElement("td");
+      player.dataset.label = "Roblox player";
+      const name = document.createElement("strong");
+      name.className = "player-name";
+      name.textContent = item.roblox_username || "Unknown";
+      player.append(name);
+
+      const userId = document.createElement("td");
+      userId.dataset.label = "User ID";
+      userId.textContent = item.roblox_user_id ? String(item.roblox_user_id) : "Unavailable";
+
+      const license = document.createElement("td");
+      license.dataset.label = "License";
+      license.textContent = item.license?.key_prefix || "Unknown";
+
+      const place = document.createElement("td");
+      place.dataset.label = "Game / Place";
+      place.textContent = item.place_id ? String(item.place_id) : "Unknown";
+
+      const lastSeen = document.createElement("td");
+      lastSeen.dataset.label = "Last seen";
+      lastSeen.textContent = item.last_seen_at ? new Date(item.last_seen_at).toLocaleTimeString() : "Unknown";
+
+      const action = document.createElement("td");
+      action.dataset.label = "Action";
+      action.className = "actions";
+      const kick = document.createElement("button");
+      kick.type = "button";
+      kick.className = "danger";
+      kick.textContent = item.kick_requested ? "Kick sent" : "Kick player";
+      kick.disabled = !!item.kick_requested;
+      kick.addEventListener("click", async () => {
+        if (!confirm(`Kick ${item.roblox_username || "this player"} from the current session?`)) return;
+        kick.disabled = true;
+        try {
+          await api("kick_session", { session_id: item.session_id });
+          kick.textContent = "Kick sent";
+          message("Kick request sent. The player will be disconnected on their next check-in.");
+        } catch (error) {
+          kick.disabled = false;
+          message(error.message || "Could not send kick request.");
+        }
+      });
+      action.append(kick);
+      tr.append(player, userId, license, place, lastSeen, action);
+      tbody.append(tr);
+    }
+  }
+
   function renderLicenses() {
     const query = ($("search-input")?.value || "").trim().toLowerCase();
     const statusFilter = $("status-filter")?.value || "all";
@@ -183,6 +250,7 @@
     $("active-count").textContent = licenseCache.filter(x => x.status === "active").length;
     $("bound-count").textContent = licenseCache.filter(x => !!x.bound_device_hash).length;
     renderLicenses();
+    await refreshSessions();
   }
 
   let sessionUpdateId = 0;
@@ -227,6 +295,14 @@
   $("logout-btn").addEventListener("click", async () => {
     await supabase.auth.signOut();
     await updateSession(null);
+  });
+
+  $("refresh-sessions-btn").addEventListener("click", async () => {
+    const btn = $("refresh-sessions-btn");
+    btn.disabled = true;
+    try { await refreshSessions(); message("Active player list updated."); }
+    catch (error) { message(error.message); }
+    finally { btn.disabled = false; }
   });
 
   $("refresh-btn").addEventListener("click", async () => {
@@ -281,6 +357,13 @@
     .catch(error => {
       $("login-message").textContent = "Could not restore your login session: " + error.message;
     });
+
+  // Refresh live sessions independently of the license inventory.
+  setInterval(() => {
+    if (session?.access_token && !$("dashboard").hidden) {
+      refreshSessions().catch(error => console.warn("Could not refresh active players:", error));
+    }
+  }, 8000);
 
   const params = new URLSearchParams(window.location.search);
   const authError = params.get("error_description") || params.get("error");
