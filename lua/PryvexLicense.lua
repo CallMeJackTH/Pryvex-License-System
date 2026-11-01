@@ -1,6 +1,5 @@
 -- Pryvex License client helper.
--- DeviceId must be a stable identifier supplied by your supported executor/setup.
--- A client-supplied identifier can be spoofed; this is not hardware attestation.
+-- DeviceId is client-reported and can be spoofed; it is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
 
@@ -25,7 +24,6 @@ local function postJson(url, body)
             Body = game:GetService("HttpService"):JSONEncode(body)
         })
     end)
-
     if not ok then return nil, tostring(response) end
 
     local statusCode = response.StatusCode or response.Status or 0
@@ -33,7 +31,6 @@ local function postJson(url, body)
     local decodedOk, decoded = pcall(function()
         return game:GetService("HttpService"):JSONDecode(responseBody)
     end)
-
     if not decodedOk then return nil, "Invalid response from license server." end
     if statusCode < 200 or statusCode >= 300 then
         return decoded, decoded.error or "License verification failed."
@@ -65,12 +62,12 @@ function License.verify()
         discord_id = type(discordId) == "string" and discordId or nil
     })
 
-    if not result or result.valid ~= true then
-        warn("[Pryvex] " .. tostring(err or (result and result.error) or "Verification failed"))
+    if not result or result.valid ~= true or result.plan ~= "premium" then
+        warn("[Pryvex] " .. tostring(err or (result and result.error) or "A valid Premium license is required."))
         return false
     end
 
-    print("[Pryvex] License verified.")
+    print("[Pryvex] Premium license verified.")
     return true
 end
 
