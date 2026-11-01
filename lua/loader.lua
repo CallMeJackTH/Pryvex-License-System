@@ -132,4 +132,44 @@ pcall(function()
 end)
 
 print("[Pryvex] Premium verified. Pryvex Hub UI is ready.")
+
+-- Keep checking the license while the script is running.
+-- A disabled/deleted/invalid key closes the UI and disconnects the current client.
+if type(License.startMonitor) == "function" then
+    License.startMonitor(function(code)
+        local reason = "Key is Invalid"
+        if code == "KEY_DISABLED" then
+            reason = "Key has been Disabled"
+        elseif code == "KEY_DELETED" then
+            reason = "Key has been Deleted"
+        elseif code == "KEY_EXPIRED" then
+            reason = "Key has Expired"
+        elseif code == "DEVICE_MISMATCH" then
+            reason = "Key is bound to another device"
+        end
+
+        pcall(function()
+            if env.PryvexWindow and env.PryvexWindow.Destroy then
+                env.PryvexWindow:Destroy()
+            end
+            if library.GUI then
+                library.GUI:Destroy()
+            end
+        end)
+
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Pryvex License",
+                Text = reason,
+                Duration = 5
+            })
+        end)
+
+        task.wait(1.5)
+        pcall(function()
+            game:GetService("Players").LocalPlayer:Kick(reason)
+        end)
+    end, 30)
+end
+
 return library
