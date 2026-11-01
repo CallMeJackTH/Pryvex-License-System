@@ -1,6 +1,6 @@
 -- Pryvex Hub Premium Loader
--- Automatically creates and persists a device identifier on first run.
--- The identifier is executor-local and client-reported, not hardware attestation.
+-- Verifies Premium, loads the Pryvex UI library, then creates an empty UI shell.
+-- DeviceId is executor-local and client-reported, not hardware attestation.
 
 local env = (getgenv and getgenv()) or _G
 
@@ -63,6 +63,8 @@ if not verifyOk or isPremium ~= true then
     return stop("Premium verification failed. Pryvex Hub was not downloaded.")
 end
 
+print("[Pryvex] Premium license verified.")
+
 -- Download the UI library only after Premium verification succeeds.
 local downloadOk, librarySource = pcall(function()
     return game:HttpGet(libraryURL)
@@ -82,5 +84,41 @@ if not executeOk or type(library) ~= "table" then
 end
 
 env.PryvexHub = library
-print("[Pryvex] Premium verified. Pryvex Hub is ready.")
+
+-- Create the window and two empty tabs. Features can be added to these tabs later.
+local windowOk, window = pcall(function()
+    return library:CreateWindow({
+        Title = "Pryvex Hub",
+        SubTitle = "Premium",
+        TabWidth = 150,
+        Size = UDim2.fromOffset(580, 450),
+        Acrylic = true,
+        Theme = "Dark",
+        MinimizeKey = Enum.KeyCode.LeftControl
+    })
+end)
+
+if not windowOk or not window then
+    return stop("UI window creation failed: " .. tostring(window))
+end
+
+local tabsOk, tabs = pcall(function()
+    return {
+        Main = window:AddTab({ Title = "หน้าหลัก", Icon = "house" }),
+        Settings = window:AddTab({ Title = "ตั้งค่า", Icon = "settings" })
+    }
+end)
+
+if not tabsOk then
+    return stop("UI tab creation failed: " .. tostring(tabs))
+end
+
+env.PryvexWindow = window
+env.PryvexTabs = tabs
+
+pcall(function()
+    window:SelectTab(1)
+end)
+
+print("[Pryvex] Premium verified. Pryvex Hub UI is ready.")
 return library
