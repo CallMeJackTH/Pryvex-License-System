@@ -3,5 +3,5 @@
 window.PRYVEX_CONFIG = {
   SUPABASE_URL: "https://YOUR_PROJECT.supabase.co",
   SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY",
-  LICENSE_API_URL: "https://YOUR_PROJECT.functions.supabase.co/license-api"
+  LICENSE_API_URL: "https://YOUR_PROJECT.supabase.co/functions/v1/license-api"
 };
