@@ -9,6 +9,33 @@
     }
   };
 
+  // Clipboard API requires a secure context and may be blocked by embedded browsers.
+  // Use execCommand as a compatibility fallback for older browsers.
+  async function copyText(value) {
+    if (!value) throw new Error("Nothing to copy.");
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+    } catch (_) {}
+
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    field.style.pointerEvents = "none";
+    document.body.appendChild(field);
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, field.value.length);
+    let copied = false;
+    try { copied = document.execCommand("copy"); } catch (_) {}
+    field.remove();
+    if (!copied) throw new Error("Clipboard unavailable. Select the key and copy it manually.");
+  }
+
   if (!cfg || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !cfg.LICENSE_API_URL) {
     $("login-message").textContent = "Configuration missing. Copy config.example.js to config.js and fill public Supabase values.";
     $("login-btn").disabled = true;
@@ -83,10 +110,10 @@
       copyKeyButton.title = item.key ? "Copy full license key" : "This key predates encrypted key storage and cannot be recovered";
       copyKeyButton.addEventListener("click", async () => {
         try {
-          await navigator.clipboard.writeText(item.key);
+          await copyText(item.key);
           message("Full license key copied.");
-        } catch {
-          message("Clipboard unavailable. Select the key and copy it manually.");
+        } catch (error) {
+          message(error.message || "Clipboard unavailable.");
         }
       });
       licenseCell.append(copyKeyButton);
@@ -231,17 +258,16 @@
     const value = $("generated-keys").value;
     if (!value) return message("There are no generated keys to copy.");
     try {
-      await navigator.clipboard.writeText(value);
+      await copyText(value);
       message("Keys copied to clipboard.");
-    } catch {
-      message("Clipboard unavailable; select and copy the keys manually.");
+    } catch (error) {
+      message(error.message || "Clipboard unavailable; select and copy the keys manually.");
     }
   });
 
   $("search-input").addEventListener("input", renderLicenses);
   $("status-filter").addEventListener("change", renderLicenses);
 
-  // Keep the auth callback synchronous; defer UI/API work until Supabase releases its auth lock.
   supabase.auth.onAuthStateChange((_event, nextSession) => {
     queueMicrotask(() => { void updateSession(nextSession); });
   });
@@ -255,7 +281,6 @@
       $("login-message").textContent = "Could not restore your login session: " + error.message;
     });
 
-  // OAuth can return provider errors in the URL query string.
   const params = new URLSearchParams(window.location.search);
   const authError = params.get("error_description") || params.get("error");
   if (authError) $("login-message").textContent = decodeURIComponent(authError.replace(/\\+/g, " "));
