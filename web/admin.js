@@ -39,7 +39,7 @@
     const query = ($("search-input")?.value || "").trim().toLowerCase();
     const statusFilter = $("status-filter")?.value || "all";
     const rows = licenseCache.filter(item => {
-      const matchesQuery = !query || String(item.key_prefix || "").toLowerCase().includes(query);
+      const matchesQuery = !query || String(item.key || item.key_prefix || "").toLowerCase().includes(query);
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
       return matchesQuery && matchesStatus;
     });
@@ -63,12 +63,35 @@
       status.textContent = item.status;
 
       const values = [
-        ["License", item.key_prefix, "license-code"],
         ["Status", status, ""],
         ["Device", item.bound_device_hash ? "Bound" : "Not bound", item.bound_device_hash ? "device-state bound" : "device-state"],
         ["Expires", item.expires_at ? new Date(item.expires_at).toLocaleString() : "Never", ""],
         ["Last verified", item.last_verified_at ? new Date(item.last_verified_at).toLocaleString() : "Not yet", ""]
       ];
+      const licenseCell = document.createElement("td");
+      licenseCell.dataset.label = "License";
+      licenseCell.className = "license-cell";
+      const keyText = document.createElement("span");
+      keyText.className = "license-code";
+      keyText.textContent = item.key || item.key_prefix || "Unavailable";
+      licenseCell.append(keyText);
+      const copyKeyButton = document.createElement("button");
+      copyKeyButton.type = "button";
+      copyKeyButton.className = "copy-key-btn";
+      copyKeyButton.textContent = "Copy";
+      copyKeyButton.disabled = !item.key;
+      copyKeyButton.title = item.key ? "Copy full license key" : "This key predates encrypted key storage and cannot be recovered";
+      copyKeyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(item.key);
+          message("Full license key copied.");
+        } catch {
+          message("Clipboard unavailable. Select the key and copy it manually.");
+        }
+      });
+      licenseCell.append(copyKeyButton);
+      tr.append(licenseCell);
+
       for (const [label, value, className] of values) {
         const td = document.createElement("td");
         td.dataset.label = label;
