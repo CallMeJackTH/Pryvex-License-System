@@ -193,14 +193,20 @@ Deno.serve(async (req) => {
             game_id: String(body.game_id ?? "").slice(0, 128) || null,
             last_seen_at: new Date().toISOString()
           }, { onConflict: "session_id" })
-          .select("kick_requested,kick_message")
+          .select("pending_command")
           .single();
         if (sessionError) throw sessionError;
-        if (liveSession?.kick_requested) {
+        if (liveSession?.pending_command) {
+          const pendingCommand = liveSession.pending_command;
+          await db.from("license_active_sessions")
+            .update({ pending_command: null })
+            .eq("session_id", sessionId);
           return json({
             valid: true,
-            kick_requested: true,
-            kick_message: liveSession.kick_message ?? "An administrator disconnected this session."
+            pending_command: pendingCommand,
+            plan: license.plan ?? "premium",
+            status: row.license_status,
+            expires_at: row.expires_at
           }, 200, origin);
         }
       }
@@ -255,7 +261,7 @@ Deno.serve(async (req) => {
       const cutoff = new Date(Date.now() - 60_000).toISOString();
       const { data: sessions, error: sessionsError } = await db
         .from("license_active_sessions")
-        .select("session_id,license_id,roblox_user_id,roblox_username,roblox_display_name,place_id,game_id,last_seen_at,kick_requested")
+        .select("session_id,license_id,roblox_user_id,roblox_username,roblox_display_name,place_id,game_id,last_seen_at")
         .gte("last_seen_at", cutoff)
         .order("last_seen_at", { ascending: false })
         .limit(500);
@@ -278,31 +284,47 @@ Deno.serve(async (req) => {
       }, 200, origin);
     }
 
-    if (action === "kick_session") {
+    if (action === "send_command") {
       const sessionId = String(body.session_id ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(sessionId)) {
         return json({ error: "Invalid session ID" }, 400, origin);
       }
+
+      const command = body.command ?? {};
+      const type = String(command.type ?? "");
+      let pendingCommand: Record<string, unknown>;
+
+      if (type === "message") {
+        const text = String(command.text ?? "").trim().slice(0, 180);
+        if (!text) return json({ error: "Message cannot be empty" }, 400, origin);
+        pendingCommand = { type: "message", text };
+      } else if (type === "play_sound") {
+        const assetId = String(command.asset_id ?? "").trim();
+        const volume = Number(command.volume ?? 1);
+        if (!/^\\d{1,20}$/.test(assetId)) {
+          return json({ error: "Invalid Roblox audio asset ID" }, 400, origin);
+        }
+        if (!Number.isFinite(volume) || volume < 0 || volume > 10) {
+          return json({ error: "Volume must be between 0 and 10" }, 400, origin);
+        }
+        pendingCommand = { type: "play_sound", asset_id: assetId, volume };
+      } else {
+        return json({ error: "Unsupported command type" }, 400, origin);
+      }
+
       const cutoff = new Date(Date.now() - 90_000).toISOString();
       const { data: target, error: targetError } = await db
         .from("license_active_sessions")
-        .select("session_id,license_id,device_hash")
+        .select("session_id")
         .eq("session_id", sessionId)
         .gte("last_seen_at", cutoff)
         .maybeSingle();
       if (targetError) throw targetError;
       if (!target) return json({ error: "This player is no longer online." }, 404, origin);
 
-      // A player may have multiple loader sessions. Kick all recent sessions
-      // belonging to the selected license on the same device.
       const { error } = await db.from("license_active_sessions")
-        .update({
-          kick_requested: true,
-          kick_message: "You were disconnected by a Pryvex administrator."
-        })
-        .eq("license_id", target.license_id)
-        .eq("device_hash", target.device_hash)
-        .gte("last_seen_at", cutoff);
+        .update({ pending_command: pendingCommand })
+        .eq("session_id", sessionId);
       if (error) throw error;
       return json({ success: true }, 200, origin);
     }
