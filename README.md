@@ -4,6 +4,8 @@ Starter project for a server-verified license system with:
 - Discord OAuth admin sign-in (Supabase Auth)
 - One license key bound to one client-supplied device identifier
 - Admin key generation, disable/enable, delete, and HWID reset
+- Live license re-checks while the script is running; disabled/deleted keys terminate the active client
+- Deleted-key tombstones distinguish deleted keys from never-valid keys
 - Supabase Edge Function API and PostgreSQL schema
 - A small Lua executor-side verification module
 
@@ -66,7 +68,7 @@ getgenv().id = "YOUR_DISCORD_ID" -- optional metadata only; not authentication
 loadstring(game:HttpGet("https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/main/lua/loader.lua"))()
 ```
 
-The loader downloads `lua/PryvexLicense.lua`, verifies the key against the Supabase Edge Function, and only downloads/runs `ScriptURL` after verification succeeds. It fails closed if configuration, network access, or verification fails.
+The loader downloads `lua/PryvexLicense.lua`, verifies the key against the Supabase Edge Function, and only downloads/runs `ScriptURL` after verification succeeds. The client re-checks the license every 30 seconds; disabling or deleting a key causes the active client to close Pryvex UI and disconnect with a matching reason. Temporary network errors are retried rather than treated as a revoked key. The client-side monitor is a deterrent, not tamper-proof enforcement against a hostile executor.
 
 `DeviceId` must remain stable between runs on the same installation. Executor APIs differ, so this project does not guess an undocumented HWID function. A client-provided identifier can be spoofed; it is not hardware attestation. Never put server secrets in Lua or GitHub.
 
