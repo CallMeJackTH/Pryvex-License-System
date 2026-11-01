@@ -7,6 +7,7 @@ create table if not exists public.license_keys (
     key_hash text not null unique,
     key_prefix text not null,
     key_encrypted text,
+    plan text not null default 'premium' check (plan = 'premium'),
     status text not null default 'active'
         check (status in ('active', 'disabled', 'banned')),
     expires_at timestamptz,
@@ -17,8 +18,11 @@ create table if not exists public.license_keys (
     last_verified_at timestamptz
 );
 
--- Safe migration for projects created before encrypted key display was added.
+-- Safe migrations for existing installations.
 alter table public.license_keys add column if not exists key_encrypted text;
+alter table public.license_keys add column if not exists plan text not null default 'premium';
+alter table public.license_keys drop constraint if exists license_keys_plan_check;
+alter table public.license_keys add constraint license_keys_plan_check check (plan = 'premium');
 
 create index if not exists license_keys_status_idx
     on public.license_keys(status);
@@ -47,9 +51,11 @@ create table if not exists public.license_events (
 create index if not exists license_events_created_at_idx
     on public.license_events(created_at desc);
 
--- Atomic device binding. First successful device claims the key.
--- Subsequent calls must present the same device hash.
-create or replace function public.claim_license_device(
+-- Atomic device binding. Recreate the function so its return signature is
+-- consistent on both fresh installs and databases created by older releases.
+drop function if exists public.claim_license_device(text, text, text);
+
+create function public.claim_license_device(
     p_key_hash text,
     p_device_hash text,
     p_discord_id_label text default null
@@ -58,7 +64,8 @@ returns table (
     license_id uuid,
     license_status text,
     expires_at timestamptz,
-    device_matches boolean
+    device_matches boolean,
+    license_plan text
 )
 language plpgsql
 security definer
@@ -76,7 +83,8 @@ begin
        and (k.expires_at is null or k.expires_at > now())
        and (k.bound_device_hash is null or k.bound_device_hash = p_device_hash)
     returning k.id, k.status, k.expires_at,
-              (k.bound_device_hash = p_device_hash);
+              (k.bound_device_hash = p_device_hash),
+              k.plan;
 end;
 $$;
 
