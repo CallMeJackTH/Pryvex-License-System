@@ -21,6 +21,17 @@ create index if not exists license_keys_status_idx
 create index if not exists license_keys_created_at_idx
     on public.license_keys(created_at desc);
 
+-- Tombstones preserve deleted-key fingerprints so an old key can be identified as deleted.
+-- Only the server-side Edge Function can read or write this table.
+create table if not exists public.license_key_revocations (
+    key_hash text primary key,
+    key_prefix text not null,
+    deleted_at timestamptz not null default now()
+);
+
+alter table public.license_key_revocations enable row level security;
+revoke all on public.license_key_revocations from anon, authenticated;
+
 create table if not exists public.license_events (
     id bigint generated always as identity primary key,
     license_id uuid references public.license_keys(id) on delete set null,
@@ -71,5 +82,5 @@ alter table public.license_events enable row level security;
 
 revoke all on public.license_keys from anon, authenticated;
 revoke all on public.license_events from anon, authenticated;
-revoke all on function public.claim_license_device(text, text, text) from anon, authenticated;
+revoke all on function public.claim_license_device(text, text, text) from public, anon, authenticated;
 grant execute on function public.claim_license_device(text, text, text) to service_role;
