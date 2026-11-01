@@ -120,9 +120,9 @@ function License.startMonitor(onRevoked, intervalSeconds)
                     License._monitorRunning = false
                     if type(onRevoked) == "function" then
                         pcall(onRevoked, code, message)
-                    else
-                        terminateSession(message or code)
                     end
+                    -- Always terminate the local player after a confirmed revocation.
+                    terminateSession(message or code)
                     break
                 end
 
