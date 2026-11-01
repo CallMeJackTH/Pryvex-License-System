@@ -55,26 +55,20 @@ The Edge Function checks the authenticated Supabase user identity for the Discor
 
 ## 3. Lua integration
 
-Set these values in your own script:
+Configure the key, a stable device identifier, and the raw URL of the script you own:
 
 ```lua
 getgenv().Key = "PRYVEX-XXX-XXX-X"
-getgenv().id = "YOUR_DISCORD_ID" -- optional metadata only; not authentication
 getgenv().DeviceId = "A_STABLE_DEVICE_IDENTIFIER_FROM_YOUR_SUPPORTED_EXECUTOR"
+getgenv().ScriptURL = "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/main.lua"
+getgenv().id = "YOUR_DISCORD_ID" -- optional metadata only; not authentication
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/main/lua/loader.lua"))()
 ```
 
-Then:
+The loader downloads `lua/PryvexLicense.lua`, verifies the key against the Supabase Edge Function, and only downloads/runs `ScriptURL` after verification succeeds. It fails closed if configuration, network access, or verification fails.
 
-```lua
-local License = loadstring(game:HttpGet("YOUR_RAW_LUA_URL"))()
-if not License.verify() then
-    return
-end
-
--- Continue with your own authorized script here.
-```
-
-The `DeviceId` must remain stable between runs on the same installation. Executor APIs differ; this starter intentionally does not guess an undocumented HWID function. If no stable ID is provided, verification fails. Remember that client-provided identifiers can be spoofed.
+`DeviceId` must remain stable between runs on the same installation. Executor APIs differ, so this project does not guess an undocumented HWID function. A client-provided identifier can be spoofed; it is not hardware attestation. Never put server secrets in Lua or GitHub.
 
 ## 4. Admin features
 
