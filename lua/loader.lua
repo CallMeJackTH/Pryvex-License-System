@@ -250,7 +250,22 @@ do
         separator.Parent = panel
 
         label(panel, "LoadingCaption", "กำลังเตรียมสคริปต์สำหรับเกม", UDim2.fromOffset(23, 91), UDim2.new(1, -46, 0, 18), Enum.Font.Gotham, 11, Color3.fromRGB(164, 160, 187))
-        local gameLabel = label(panel, "GameName", map.Name, UDim2.fromOffset(23, 111), UDim2.new(1, -46, 0, 25), Enum.Font.GothamSemibold, 16, Color3.fromRGB(244, 242, 255))
+        -- Small game icon tile beside the detected experience name.
+        local gameIconTile = Instance.new("Frame")
+        gameIconTile.Name = "GameIcon"
+        gameIconTile.Position = UDim2.fromOffset(22, 108)
+        gameIconTile.Size = UDim2.fromOffset(30, 30)
+        gameIconTile.BackgroundColor3 = Color3.fromRGB(54, 47, 83)
+        gameIconTile.BackgroundTransparency = 0.12
+        gameIconTile.BorderSizePixel = 0
+        gameIconTile.Parent = panel
+        corner(gameIconTile, 8)
+        stroke(gameIconTile, Color3.fromRGB(150, 119, 255), 0.65, 1)
+
+        local gameIcon = label(gameIconTile, "GameGlyph", "◇", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.Font.GothamBold, 23, Color3.fromRGB(204, 177, 255))
+        gameIcon.TextXAlignment = Enum.TextXAlignment.Center
+
+        local gameLabel = label(panel, "GameName", map.Name, UDim2.fromOffset(62, 111), UDim2.new(1, -85, 0, 25), Enum.Font.GothamSemibold, 16, Color3.fromRGB(244, 242, 255))
         gameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
         local placeLabel = label(panel, "PlaceId", "PLACE ID  /  " .. placeId, UDim2.fromOffset(24, 138), UDim2.new(1, -48, 0, 15), Enum.Font.Gotham, 9, Color3.fromRGB(127, 125, 155))
@@ -275,7 +290,9 @@ do
         fillGradient.Color = ColorSequence.new(Color3.fromRGB(111, 91, 255), Color3.fromRGB(194, 106, 255))
         fillGradient.Parent = barFill
 
-        local statusLabel = label(panel, "Status", map.URL == "" and "ยังไม่ได้กำหนดลิงก์สคริปต์ของเกมนี้" or "กำลังเชื่อมต่อและดาวน์โหลด...", UDim2.fromOffset(23, 178), UDim2.new(1, -46, 0, 20), Enum.Font.Gotham, 10, map.URL == "" and Color3.fromRGB(255, 190, 115) or Color3.fromRGB(185, 177, 215))
+        local statusGlyph = label(panel, "StatusIcon", map.URL == "" and "!" or "●", UDim2.fromOffset(23, 178), UDim2.fromOffset(16, 20), Enum.Font.GothamBold, 11, map.URL == "" and Color3.fromRGB(255, 190, 115) or Color3.fromRGB(174, 139, 255))
+        statusGlyph.TextXAlignment = Enum.TextXAlignment.Center
+        local statusLabel = label(panel, "Status", map.URL == "" and "ยังไม่ได้กำหนดลิงก์สคริปต์ของเกมนี้" or "กำลังเชื่อมต่อและดาวน์โหลด...", UDim2.fromOffset(43, 178), UDim2.new(1, -66, 0, 20), Enum.Font.Gotham, 10, map.URL == "" and Color3.fromRGB(255, 190, 115) or Color3.fromRGB(185, 177, 215))
         statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
         panel.Size = UDim2.fromOffset(440, 205)
