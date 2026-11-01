@@ -13,7 +13,7 @@ Starter project for a server-verified license system with:
 
 1. **A client-reported HWID/device ID is not strong device attestation.** A user controlling the executor can spoof or reset it. This project enforces one *reported device ID* per key; it cannot guarantee one physical device.
 2. `getgenv().id` is treated as an optional Discord ID label only. It is not proof that the caller owns that Discord account.
-3. Never put the Supabase `service_role` key, `KEY_HASH_SECRET`, or `DEVICE_HASH_SECRET` in browser JavaScript, Lua, or GitHub.
+3. Never put the Supabase `service_role` key, `KEY_HASH_SECRET`, `DEVICE_HASH_SECRET`, or `LICENSE_ENCRYPTION_SECRET` in browser JavaScript, Lua, or GitHub. Keep `LICENSE_ENCRYPTION_SECRET` backed up securely; losing it makes stored full keys unrecoverable.
 4. A public Lua loader can be inspected or modified. Do not distribute valuable server-side secrets or assume client-side checks cannot be bypassed.
 5. Use this only to license scripts/software you own or are authorized to distribute.
 
@@ -37,6 +37,7 @@ Starter project for a server-verified license system with:
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `KEY_HASH_SECRET` — long random secret (32+ random bytes)
    - `DEVICE_HASH_SECRET` — a different long random secret
+   - `LICENSE_ENCRYPTION_SECRET` — another long random secret used only to encrypt stored keys for admin display
    - `ADMIN_DISCORD_IDS` — comma-separated Discord account IDs allowed to administer licenses
    - `ALLOWED_ORIGINS` — exact admin site origin, e.g. `https://YOUR-VERCEL-DOMAIN.vercel.app`
 6. Deploy the `license-api` Edge Function.
@@ -76,6 +77,7 @@ The loader downloads `lua/PryvexLicense.lua`, verifies the key against the Supab
 
 - Generate one or many keys
 - Set optional expiry date
+- View full keys and copy them from the inventory (keys generated before encrypted storage was enabled cannot be recovered; generate replacements for those)
 - View status and device binding state
 - Reset device binding (HWID reset)
 - Disable/enable a key
