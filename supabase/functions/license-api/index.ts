@@ -196,6 +196,19 @@ Deno.serve(async (req) => {
           .select("session_id")
           .single();
         if (sessionError) throw sessionError;
+
+        if (Number.isSafeInteger(robloxUserId) && robloxUserId > 0) {
+          const { error: historyError } = await db.from("license_player_history").upsert({
+            roblox_user_id: robloxUserId,
+            roblox_username: robloxUsername,
+            roblox_display_name: robloxDisplayName || robloxUsername,
+            last_seen_at: new Date().toISOString(),
+            last_license_id: row.license_id,
+            last_place_id: Number.isSafeInteger(Number(body.place_id)) && Number(body.place_id) > 0 ? Number(body.place_id) : null,
+            last_game_id: String(body.game_id ?? "").slice(0, 128) || null
+          }, { onConflict: "roblox_user_id" });
+          if (historyError) throw historyError;
+        }
       }
 
       await db.from("license_events").insert({
@@ -266,6 +279,35 @@ Deno.serve(async (req) => {
         sessions: (sessions ?? []).map((item: any) => ({
           ...item,
           license: licensesById[item.license_id] ?? null
+        }))
+      }, 200, origin);
+    }
+
+    if (action === "list_player_history") {
+      const cutoff = new Date(Date.now() - 60_000).toISOString();
+      const { data: history, error: historyError } = await db
+        .from("license_player_history")
+        .select("roblox_user_id,roblox_username,roblox_display_name,first_seen_at,last_seen_at,last_license_id,last_place_id,last_game_id")
+        .order("last_seen_at", { ascending: false })
+        .limit(1000);
+      if (historyError) throw historyError;
+
+      const onlineIds = new Set((await db.from("license_active_sessions")
+        .select("roblox_user_id").gte("last_seen_at", cutoff)).data ?? []
+        .map((item: any) => Number(item.roblox_user_id)));
+      const licenseIds = [...new Set((history ?? []).map((item: any) => item.last_license_id).filter(Boolean))];
+      let licensesById: Record<string, any> = {};
+      if (licenseIds.length) {
+        const { data: licenses, error: licenseError } = await db
+          .from("license_keys").select("id,key_prefix,status").in("id", licenseIds);
+        if (licenseError) throw licenseError;
+        licensesById = Object.fromEntries((licenses ?? []).map((item: any) => [item.id, item]));
+      }
+      return json({
+        players: (history ?? []).map((item: any) => ({
+          ...item,
+          online: onlineIds.has(Number(item.roblox_user_id)),
+          license: licensesById[item.last_license_id] ?? null
         }))
       }, 200, origin);
     }
