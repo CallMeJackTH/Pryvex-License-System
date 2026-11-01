@@ -4,8 +4,22 @@
 
 local env = (getgenv and getgenv()) or _G
 
-local function stop(message)
-    warn("[Pryvex] " .. tostring(message))
+local function stop(message, shouldKick)
+    message = tostring(message)
+    warn("[Pryvex] " .. message)
+    if shouldKick then
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Pryvex License",
+                Text = message,
+                Duration = 5
+            })
+        end)
+        task.wait(1)
+        pcall(function()
+            game:GetService("Players").LocalPlayer:Kick("[Pryvex] " .. message)
+        end)
+    end
     return nil
 end
 
@@ -69,7 +83,17 @@ if isPremium ~= true then
         DEVICE_MISMATCH = "This key is already bound to another device.",
         DEVICE_INVALID = "Device identifier is invalid."
     }
-    return stop(messages[verifyCode] or verifyMessage or "License server is temporarily unavailable.")
+    local reason = messages[verifyCode] or verifyMessage or "License server is temporarily unavailable."
+    local rejectCodes = {
+        KEY_INVALID = true,
+        KEY_DELETED = true,
+        KEY_DISABLED = true,
+        KEY_BANNED = true,
+        KEY_EXPIRED = true,
+        DEVICE_MISMATCH = true,
+        DEVICE_INVALID = true
+    }
+    return stop(reason, rejectCodes[verifyCode] == true)
 end
 
 print("[Pryvex] Premium license verified.")
