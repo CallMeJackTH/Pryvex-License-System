@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pryvex License Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script defer src="admin.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div><p class="eyebrow">PRYVEX / ACCESS CONTROL</p><h1>License Manager</h1></div>
+      <span id="session-state" class="pill">Signed out</span>
+    </header>
+
+    <section id="login-panel" class="panel">
+      <h2>Administrator sign in</h2>
+      <p>Continue with the authorized Discord account.</p>
+      <button id="login-btn">Sign in with Discord</button>
+      <p id="login-message" class="muted"></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="stats">
+        <article class="panel"><span>Total keys</span><strong id="total-count">0</strong></article>
+        <article class="panel"><span>Active</span><strong id="active-count">0</strong></article>
+        <article class="panel"><span>Device bound</span><strong id="bound-count">0</strong></article>
+      </div>
+
+      <section class="panel">
+        <h2>Generate keys</h2>
+        <div class="form-row">
+          <label>Quantity <input id="key-count" type="number" min="1" max="100" value="1"></label>
+          <label>Expiry (optional) <input id="key-expiry" type="datetime-local"></label>
+          <button id="generate-btn">Generate</button>
+        </div>
+        <textarea id="generated-keys" rows="4" readonly placeholder="New keys will appear here. Copy and store them securely; they are shown only once."></textarea>
+        <button id="copy-keys-btn" class="secondary">Copy generated keys</button>
+      </section>
+
+      <section class="panel">
+        <div class="section-head"><h2>License keys</h2><button id="refresh-btn" class="secondary">Refresh</button></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Key prefix</th><th>Status</th><th>Device</th><th>Expiry</th><th>Actions</th></tr></thead>
+          <tbody id="license-rows"><tr><td colspan="5">Loading…</td></tr></tbody></table>
+        </div>
+      </section>
+      <button id="logout-btn" class="secondary">Sign out</button>
+    </section>
+    <p id="global-message" class="message" role="status"></p>
+    <footer>Keep server secrets out of this website and out of GitHub.</footer>
+  </main>
+</body>
+</html>
