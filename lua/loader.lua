@@ -223,6 +223,17 @@ do
         logoGradient.Parent = logo
         local logoText = label(logo, "LogoText", "P", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.Font.GothamBold, 25, Color3.fromRGB(255, 255, 255))
         logoText.TextXAlignment = Enum.TextXAlignment.Center
+        logoText.Visible = false
+
+        local brandIcon = Instance.new("ImageLabel")
+        brandIcon.Name = "PryvexIcon"
+        brandIcon.BackgroundTransparency = 1
+        brandIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+        brandIcon.Position = UDim2.fromScale(0.5, 0.5)
+        brandIcon.Size = UDim2.new(1, -8, 1, -8)
+        brandIcon.Image = "rbxassetid://127972121421541"
+        brandIcon.ScaleType = Enum.ScaleType.Fit
+        brandIcon.Parent = logo
 
         label(panel, "Brand", "PRYVEX", UDim2.fromOffset(76, 20), UDim2.fromOffset(220, 23), Enum.Font.GothamBold, 17, Color3.fromRGB(246, 244, 255))
         local subTitle = label(panel, "SubTitle", "PREMIUM  /  MAP LOADER", UDim2.fromOffset(77, 43), UDim2.fromOffset(260, 17), Enum.Font.GothamMedium, 10, Color3.fromRGB(157, 151, 190))
