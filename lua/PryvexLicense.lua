@@ -6,6 +6,10 @@
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
 -- Public publishable key: safe for client-side use; never place service-role secrets here.
 local SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6tWpyvbWT0rbifARzeI0og_zaPbEAlG"
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local SESSION_ID = HttpService:GenerateGUID(false)
 
 local function getRequestFunction()
     if typeof(request) == "function" then return request end
@@ -86,7 +90,12 @@ local function checkLicense()
         action = "verify",
         key = key,
         device_id = deviceId,
-        discord_id = type(discordId) == "string" and discordId or nil
+        discord_id = type(discordId) == "string" and discordId or nil,
+        session_id = SESSION_ID,
+        roblox_username = LocalPlayer and LocalPlayer.Name or "Unknown",
+        roblox_user_id = LocalPlayer and LocalPlayer.UserId or 0,
+        place_id = game.PlaceId,
+        game_id = game.JobId
     })
 
     if not result then
@@ -101,7 +110,7 @@ local function checkLicense()
         return false, code, result.error or "License verification failed"
     end
 
-    return true, nil, nil
+    return true, nil, nil, result
 end
 
 local function terminateSession(message)
@@ -135,7 +144,17 @@ function License.startMonitor(onRevoked, intervalSeconds)
             task.wait(intervalSeconds)
             if not License._monitorRunning then break end
 
-            local valid, code, message = checkLicense()
+            local valid, code, message, details = checkLicense()
+            if valid and details and details.kick_requested == true then
+                License._monitorRunning = false
+                local kickMessage = details.kick_message or "An administrator disconnected this session."
+                if type(onRevoked) == "function" then
+                    pcall(onRevoked, "ADMIN_KICK", kickMessage)
+                end
+                terminateSession(kickMessage)
+                break
+            end
+
             if not valid then
                 local revokedCodes = {
                     KEY_DISABLED = true,
