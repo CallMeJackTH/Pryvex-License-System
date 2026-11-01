@@ -71,7 +71,7 @@
     if (!sessions.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = 6;
       td.textContent = "No players currently reporting an active session.";
       tr.append(td);
       tbody.append(tr);
@@ -125,49 +125,7 @@
       lastSeen.dataset.label = "Last seen";
       lastSeen.textContent = item.last_seen_at ? new Date(item.last_seen_at).toLocaleTimeString() : "Unknown";
 
-      const controls = document.createElement("td");
-      controls.dataset.label = "Controls";
-      controls.className = "actions";
-
-      const makeButton = (label, handler) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "secondary-btn";
-        btn.textContent = label;
-        btn.addEventListener("click", async () => {
-          btn.disabled = true;
-          try { await handler(); }
-          catch (error) { message(error.message || "Command failed."); }
-          finally { btn.disabled = false; }
-        });
-        controls.append(btn);
-      };
-
-      makeButton("Send message", async () => {
-        const text = prompt("Message to show in the player's game (max 180 characters):");
-        if (text === null) return;
-        const clean = text.trim().slice(0, 180);
-        if (!clean) throw new Error("Message cannot be empty.");
-        await api("send_command", { session_id: item.session_id, command: { type: "message", text: clean } });
-        message("Message sent to " + (item.roblox_username || "player") + ".");
-      });
-
-      makeButton("Play sound", async () => {
-        const assetId = prompt("Roblox audio asset ID (numbers only):");
-        if (assetId === null) return;
-        if (!/^\d{1,20}$/.test(assetId.trim())) throw new Error("Enter a numeric Roblox audio asset ID.");
-        const volumeInput = prompt("Volume from 0 to 10:", "1");
-        if (volumeInput === null) return;
-        const volume = Number(volumeInput);
-        if (!Number.isFinite(volume) || volume < 0 || volume > 10) throw new Error("Volume must be between 0 and 10.");
-        await api("send_command", {
-          session_id: item.session_id,
-          command: { type: "play_sound", asset_id: assetId.trim(), volume }
-        });
-        message("Sound command sent to " + (item.roblox_username || "player") + ".");
-      });
-
-      tr.append(player, userId, license, place, job, lastSeen, controls);
+      tr.append(player, userId, license, place, job, lastSeen);
       tbody.append(tr);
     }
   }
