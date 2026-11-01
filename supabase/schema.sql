@@ -6,6 +6,7 @@ create table if not exists public.license_keys (
     id uuid primary key default gen_random_uuid(),
     key_hash text not null unique,
     key_prefix text not null,
+    key_encrypted text,
     status text not null default 'active'
         check (status in ('active', 'disabled', 'banned')),
     expires_at timestamptz,
@@ -15,6 +16,9 @@ create table if not exists public.license_keys (
     updated_at timestamptz not null default now(),
     last_verified_at timestamptz
 );
+
+-- Safe migration for projects created before encrypted key display was added.
+alter table public.license_keys add column if not exists key_encrypted text;
 
 create index if not exists license_keys_status_idx
     on public.license_keys(status);
