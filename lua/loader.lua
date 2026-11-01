@@ -1,5 +1,5 @@
 -- Pryvex Hub Premium Loader
--- Verifies Premium, loads the Pryvex UI library, then creates an empty UI shell.
+-- License verification happens before the UI library is downloaded.
 -- DeviceId is executor-local and client-reported, not hardware attestation.
 
 local env = (getgenv and getgenv()) or _G
@@ -13,7 +13,6 @@ if type(env.Key) ~= "string" or env.Key == "" then
     return stop("Missing Premium key. Set getgenv().Key first.")
 end
 
--- Remember this executor's device ID after the first successful creation.
 local deviceFile = "Pryvex_DeviceId.txt"
 if type(env.DeviceId) ~= "string" or #env.DeviceId < 8 then
     if type(isfile) ~= "function" or type(readfile) ~= "function"
@@ -25,7 +24,6 @@ if type(env.DeviceId) ~= "string" or #env.DeviceId < 8 then
         if isfile(deviceFile) then
             return readfile(deviceFile)
         end
-
         local newId = game:GetService("HttpService"):GenerateGUID(false)
         writefile(deviceFile, newId)
         return newId
@@ -34,11 +32,10 @@ if type(env.DeviceId) ~= "string" or #env.DeviceId < 8 then
     if not fileOk or type(deviceId) ~= "string" or #deviceId < 8 then
         return stop("Could not create or read the saved device ID.")
     end
-
     env.DeviceId = deviceId
 end
 
-local libraryURL = "https://cdn.jsdelivr.net/gh/CallMeJackTH/Pryvex-Hub@9cfa4e2809fd257e93ff7eca204fc57a45548b67/dist/PryvexHub.lua"
+local libraryURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-Hub/main/dist/PryvexHub.lua"
 local helperURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/main/lua/PryvexLicense.lua"
 
 local ok, helperSource = pcall(function()
@@ -58,14 +55,25 @@ if not initOk or type(License) ~= "table" or type(License.verify) ~= "function" 
     return stop("License module did not initialize correctly.")
 end
 
-local verifyOk, isPremium = pcall(License.verify)
-if not verifyOk or isPremium ~= true then
-    return stop("Premium verification failed. Pryvex Hub was not downloaded.")
+local verifyOk, isPremium, verifyCode, verifyMessage = pcall(License.verify)
+if not verifyOk then
+    return stop("License verification could not run: " .. tostring(isPremium))
+end
+if isPremium ~= true then
+    local messages = {
+        KEY_INVALID = "License key is invalid or not found.",
+        KEY_DELETED = "This license key has been deleted.",
+        KEY_DISABLED = "This license key has been disabled.",
+        KEY_BANNED = "This license key has been banned.",
+        KEY_EXPIRED = "This license key has expired.",
+        DEVICE_MISMATCH = "This key is already bound to another device.",
+        DEVICE_INVALID = "Device identifier is invalid."
+    }
+    return stop(messages[verifyCode] or verifyMessage or "License server is temporarily unavailable.")
 end
 
 print("[Pryvex] Premium license verified.")
 
--- Download the UI library only after Premium verification succeeds.
 local downloadOk, librarySource = pcall(function()
     return game:HttpGet(libraryURL)
 end)
@@ -85,7 +93,6 @@ end
 
 env.PryvexHub = library
 
--- Create the window and two empty tabs. Features can be added to these tabs later.
 local windowOk, window = pcall(function()
     return library:CreateWindow({
         Title = "Pryvex Hub",
@@ -102,15 +109,12 @@ if not windowOk or not window then
     return stop("UI window creation failed: " .. tostring(window))
 end
 
--- Force the ScreenGui and window to remain visible.
 pcall(function()
     if library.GUI then
         library.GUI.Enabled = true
         library.GUI.DisplayOrder = 999999
     end
-    if window.Root then
-        window.Root.Visible = true
-    end
+    if window.Root then window.Root.Visible = true end
 end)
 
 local tabsOk, tabs = pcall(function()
@@ -119,42 +123,33 @@ local tabsOk, tabs = pcall(function()
         Settings = window:AddTab({ Title = "ตั้งค่า", Icon = "settings" })
     }
 end)
-
 if not tabsOk then
     return stop("UI tab creation failed: " .. tostring(tabs))
 end
 
 env.PryvexWindow = window
 env.PryvexTabs = tabs
-
-pcall(function()
-    window:SelectTab(1)
-end)
+pcall(function() window:SelectTab(1) end)
 
 print("[Pryvex] Premium verified. Pryvex Hub UI is ready.")
 
--- Keep checking the license while the script is running.
--- A disabled/deleted/invalid key closes the UI and disconnects the current client.
 if type(License.startMonitor) == "function" then
-    License.startMonitor(function(code)
-        local reason = "Key is Invalid"
-        if code == "KEY_DISABLED" then
-            reason = "Key has been Disabled"
-        elseif code == "KEY_DELETED" then
-            reason = "Key has been Deleted"
-        elseif code == "KEY_EXPIRED" then
-            reason = "Key has Expired"
-        elseif code == "DEVICE_MISMATCH" then
-            reason = "Key is bound to another device"
-        end
+    License.startMonitor(function(code, serverMessage)
+        local reasons = {
+            KEY_INVALID = "License key is invalid.",
+            KEY_DELETED = "License key was deleted.",
+            KEY_DISABLED = "License key was disabled.",
+            KEY_BANNED = "License key was banned.",
+            KEY_EXPIRED = "License key expired.",
+            DEVICE_MISMATCH = "License key is bound to another device."
+        }
+        local reason = reasons[code] or serverMessage or "License is no longer valid."
 
         pcall(function()
             if env.PryvexWindow and env.PryvexWindow.Destroy then
                 env.PryvexWindow:Destroy()
             end
-            if library.GUI then
-                library.GUI:Destroy()
-            end
+            if library.GUI then library.GUI:Destroy() end
         end)
 
         pcall(function()
