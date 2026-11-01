@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
       } else if (type === "play_sound") {
         const assetId = String(command.asset_id ?? "").trim();
         const volume = Number(command.volume ?? 1);
-        if (!/^\\d{1,20}$/.test(assetId)) {
+        if (!/^\d{1,20}$/.test(assetId)) {
           return json({ error: "Invalid Roblox audio asset ID" }, 400, origin);
         }
         if (!Number.isFinite(volume) || volume < 0 || volume > 10) {
