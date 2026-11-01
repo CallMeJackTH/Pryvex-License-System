@@ -92,7 +92,7 @@ local windowOk, window = pcall(function()
         SubTitle = "Premium",
         TabWidth = 150,
         Size = UDim2.fromOffset(580, 450),
-        Acrylic = true,
+        Acrylic = false,
         Theme = "Dark",
         MinimizeKey = Enum.KeyCode.LeftControl
     })
@@ -101,6 +101,17 @@ end)
 if not windowOk or not window then
     return stop("UI window creation failed: " .. tostring(window))
 end
+
+-- Force the ScreenGui and window to remain visible.
+pcall(function()
+    if library.GUI then
+        library.GUI.Enabled = true
+        library.GUI.DisplayOrder = 999999
+    end
+    if window.Root then
+        window.Root.Visible = true
+    end
+end)
 
 local tabsOk, tabs = pcall(function()
     return {
