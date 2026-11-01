@@ -93,6 +93,7 @@ local function checkLicense()
         discord_id = type(discordId) == "string" and discordId or nil,
         session_id = SESSION_ID,
         roblox_username = LocalPlayer and LocalPlayer.Name or "Unknown",
+        roblox_display_name = LocalPlayer and LocalPlayer.DisplayName or (LocalPlayer and LocalPlayer.Name) or "Unknown",
         roblox_user_id = LocalPlayer and LocalPlayer.UserId or 0,
         place_id = game.PlaceId,
         game_id = game.JobId
