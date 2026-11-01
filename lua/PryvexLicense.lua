@@ -4,6 +4,8 @@
 -- DeviceId is client-reported and is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
+-- Public publishable key: safe for client-side use; never place service-role secrets here.
+local SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6tWpyvbWT0rbifARzeI0og_zaPbEAlG"
 
 local function getRequestFunction()
     if typeof(request) == "function" then return request end
@@ -22,7 +24,10 @@ local function postJson(url, body)
         return requestFunction({
             Url = url,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
+            Headers = {
+                ["Content-Type"] = "application/json",
+                ["apikey"] = SUPABASE_PUBLISHABLE_KEY
+            },
             Body = game:GetService("HttpService"):JSONEncode(body)
         })
     end)
@@ -119,7 +124,9 @@ function License.verify()
 end
 
 function License.startMonitor(onRevoked, intervalSeconds)
-    intervalSeconds = math.max(15, tonumber(intervalSeconds) or 30)
+    -- Fast polling gives Disable/Delete a short detection delay.
+    -- This is client polling, not a guaranteed server push; network latency still applies.
+    intervalSeconds = math.max(2, tonumber(intervalSeconds) or 2)
     if License._monitorRunning then return false end
     License._monitorRunning = true
 
