@@ -166,9 +166,10 @@
         })
       );
       add("Delete", async () => {
-        if (confirm("Delete this key permanently? Existing sessions will be disconnected at the next license check.")) {
-          await api("delete", { license_id: item.id });
+        if (!confirm("Delete this key permanently? Existing sessions will be disconnected at the next license check.")) {
+          throw new Error("Delete cancelled.");
         }
+        await api("delete", { license_id: item.id });
       }, "danger");
       tr.append(actions);
       tbody.append(tr);
