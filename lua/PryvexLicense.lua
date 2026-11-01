@@ -2,7 +2,7 @@
 -- DeviceId must be a stable identifier supplied by your supported executor/setup.
 -- A client-supplied identifier can be spoofed; this is not hardware attestation.
 
-local API_URL = "https://YOUR_PROJECT.functions.supabase.co/license-api"
+local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
 
 local function getRequestFunction()
     if typeof(request) == "function" then return request end
