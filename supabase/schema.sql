@@ -50,6 +50,8 @@ create table if not exists public.license_events (
 
 create index if not exists license_events_created_at_idx
     on public.license_events(created_at desc);
+create index if not exists license_events_license_id_idx
+    on public.license_events(license_id);
 
 -- Atomic device binding. Recreate the function so its return signature is
 -- consistent on both fresh installs and databases created by older releases.
