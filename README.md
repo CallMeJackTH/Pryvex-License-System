@@ -39,7 +39,7 @@ Starter project for a server-verified license system with:
    - `DEVICE_HASH_SECRET` — a different long random secret
    - `LICENSE_ENCRYPTION_SECRET` — another long random secret used only to encrypt stored keys for admin display
    - `ADMIN_DISCORD_IDS` — comma-separated Discord account IDs allowed to administer licenses
-   - `ALLOWED_ORIGINS` — exact admin site origin, e.g. `https://YOUR-VERCEL-DOMAIN.vercel.app`
+   - `ALLOWED_ORIGINS` — exact admin site origin, e.g. `https://pyvexpanel.vercel.app`
 6. Deploy the `license-api` Edge Function.
 
 Supabase project URL and anon/publishable key are public client configuration, not secrets. Do not use the service-role key in the web app.
@@ -47,9 +47,10 @@ Supabase project URL and anon/publishable key are public client configuration, n
 ### Vercel
 1. Import this repository into Vercel.
 2. Set the project root to `web` (or configure the output directory to `web`).
-3. Copy `web/config.example.js` to `web/config.js`.
-4. Fill in only `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `LICENSE_API_URL` in `config.js`. These are public values.
-5. Deploy. Add the deployed origin to Supabase Auth redirect URLs and `ALLOWED_ORIGINS`.
+3. The repository includes `web/config.js` with the public Supabase URL, publishable key, and Edge Function URL. These values are safe for browser use.
+4. Set the Vercel project root directory to `web` and deploy the `main` branch.
+5. In Supabase Authentication > URL Configuration, add `https://pyvexpanel.vercel.app/admin.html` as an allowed redirect URL. Enable Discord as an Auth provider.
+6. Set `ALLOWED_ORIGINS=https://pyvexpanel.vercel.app` in Edge Function secrets.
 
 ## 2. Admin login
 
