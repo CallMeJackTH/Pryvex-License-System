@@ -141,7 +141,8 @@ if type(License.startMonitor) == "function" then
             KEY_DISABLED = "License key was disabled.",
             KEY_BANNED = "License key was banned.",
             KEY_EXPIRED = "License key expired.",
-            DEVICE_MISMATCH = "License key is bound to another device."
+            DEVICE_MISMATCH = "License key is bound to another device.",
+            DEVICE_INVALID = "Device identifier is invalid."
         }
         local reason = reasons[code] or serverMessage or "License is no longer valid."
 
