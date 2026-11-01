@@ -103,7 +103,7 @@ print("[Pryvex] Premium license verified.")
 do
     local mapScripts = {
         ["142823291"] = { Name = "Murder Mystery 2", URL = "" },
-        ["10449761463"] = { Name = "The Strongest Battlegrounds", URL = "loadstring(game:HttpGet("https://scriptblox.com/raw/The-Strongest-Battlegrounds-Relia-138974"))()" },
+        ["10449761463"] = { Name = "The Strongest Battlegrounds", URL = "https://scriptblox.com/raw/The-Strongest-Battlegrounds-Relia-138974" },
         ["93978595733734"] = { Name = "[Treatment] Severity Zone", URL = "" },
         ["107778070777162"] = { Name = "Steal An Egg", URL = "" },
         ["100068273119174"] = { Name = "Clean All the Leaves", URL = "" }
