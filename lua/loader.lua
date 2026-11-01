@@ -98,6 +98,121 @@ end
 
 print("[Pryvex] Premium license verified.")
 
+-- Pryvex Map Pre-Loader (runs only after the Premium key has been verified).
+-- Fill each URL below when the corresponding map script is ready.
+do
+    local mapScripts = {
+        ["142823291"] = { Name = "Murder Mystery 2", URL = "" },
+        ["10449761463"] = { Name = "The Strongest Battlegrounds", URL = "" },
+        ["93978595733734"] = { Name = "[Treatment] Severity Zone", URL = "" },
+        ["107778070777162"] = { Name = "Steal An Egg", URL = "" },
+        ["100068273119174"] = { Name = "Clean All the Leaves", URL = "" }
+    }
+
+    local placeId = tostring(game.PlaceId)
+    local map = mapScripts[placeId]
+
+    if map then
+        local player = game:GetService("Players").LocalPlayer
+        local parent
+        pcall(function() parent = game:GetService("CoreGui") end)
+        if not parent then
+            parent = player:WaitForChild("PlayerGui")
+        end
+
+        local oldGui = parent:FindFirstChild("PryvexMapPreLoader")
+        if oldGui then oldGui:Destroy() end
+
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "PryvexMapPreLoader"
+        gui.ResetOnSpawn = false
+        gui.DisplayOrder = 999998
+        gui.Parent = parent
+
+        local panel = Instance.new("Frame")
+        panel.Name = "Panel"
+        panel.AnchorPoint = Vector2.new(0.5, 0.5)
+        panel.Position = UDim2.fromScale(0.5, 0.5)
+        panel.Size = UDim2.fromOffset(390, 150)
+        panel.BackgroundColor3 = Color3.fromRGB(13, 15, 23)
+        panel.BorderSizePixel = 0
+        panel.Parent = gui
+        Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+
+        local outline = Instance.new("UIStroke")
+        outline.Color = Color3.fromRGB(115, 105, 245)
+        outline.Transparency = 0.35
+        outline.Parent = panel
+
+        local heading = Instance.new("TextLabel")
+        heading.BackgroundTransparency = 1
+        heading.Position = UDim2.fromOffset(20, 16)
+        heading.Size = UDim2.new(1, -40, 0, 28)
+        heading.Font = Enum.Font.GothamBold
+        heading.Text = "PRYVEX  /  MAP LOADER"
+        heading.TextColor3 = Color3.fromRGB(242, 243, 255)
+        heading.TextSize = 18
+        heading.TextXAlignment = Enum.TextXAlignment.Left
+        heading.Parent = panel
+
+        local gameLabel = Instance.new("TextLabel")
+        gameLabel.BackgroundTransparency = 1
+        gameLabel.Position = UDim2.fromOffset(20, 52)
+        gameLabel.Size = UDim2.new(1, -40, 0, 22)
+        gameLabel.Font = Enum.Font.GothamMedium
+        gameLabel.Text = map.Name .. "  •  " .. placeId
+        gameLabel.TextColor3 = Color3.fromRGB(174, 181, 205)
+        gameLabel.TextSize = 12
+        gameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        gameLabel.Parent = panel
+
+        local statusLabel = Instance.new("TextLabel")
+        statusLabel.BackgroundTransparency = 1
+        statusLabel.Position = UDim2.fromOffset(20, 88)
+        statusLabel.Size = UDim2.new(1, -40, 0, 34)
+        statusLabel.Font = Enum.Font.Gotham
+        statusLabel.TextWrapped = true
+        statusLabel.Text = map.URL == "" and "ยังไม่ได้กำหนดลิงก์สคริปต์ของเกมนี้" or "กำลังเตรียมสคริปต์..."
+        statusLabel.TextColor3 = map.URL == "" and Color3.fromRGB(255, 190, 100) or Color3.fromRGB(120, 220, 170)
+        statusLabel.TextSize = 13
+        statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+        statusLabel.Parent = panel
+
+        if map.URL ~= "" then
+            task.spawn(function()
+                local downloadOk, source = pcall(function()
+                    return game:HttpGet(map.URL)
+                end)
+                if not downloadOk or type(source) ~= "string" or source == "" then
+                    statusLabel.Text = "ดาวน์โหลดสคริปต์ไม่สำเร็จ"
+                    statusLabel.TextColor3 = Color3.fromRGB(255, 105, 120)
+                    return
+                end
+
+                local compileOk, scriptFunction = pcall(loadstring, source)
+                if not compileOk or type(scriptFunction) ~= "function" then
+                    statusLabel.Text = "สคริปต์มีข้อผิดพลาด ไม่สามารถ Compile ได้"
+                    statusLabel.TextColor3 = Color3.fromRGB(255, 105, 120)
+                    return
+                end
+
+                statusLabel.Text = "กำลังเริ่มสคริปต์..."
+                task.wait(0.25)
+                gui:Destroy()
+                local runOk, runError = pcall(scriptFunction)
+                if not runOk then
+                    warn("[Pryvex Map Loader] " .. tostring(runError))
+                end
+            end)
+        else
+            task.delay(4, function()
+                if gui and gui.Parent then gui:Destroy() end
+            end)
+        end
+    end
+end
+
+
 local downloadOk, librarySource = pcall(function()
     return game:HttpGet(libraryURL)
 end)
