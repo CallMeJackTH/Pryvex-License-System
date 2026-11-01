@@ -143,7 +143,7 @@ end)
 
 local tabsOk, tabs = pcall(function()
     return {
-        Main = window:AddTab({ Title = "หน้าหลัก", Icon = "house" }),
+        Main = window:AddTab({ Title = "หน้าหลัก", Icon = "home" }),
         Settings = window:AddTab({ Title = "ตั้งค่า", Icon = "settings" })
     }
 end)
