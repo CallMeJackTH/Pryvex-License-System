@@ -191,8 +191,19 @@ Deno.serve(async (req) => {
     await requireAdmin(req);
 
     if (action === "generate") {
-      const count = Math.max(1, Math.min(100, Number(body.count) || 1));
-      const expiresAt = body.expires_at ? new Date(body.expires_at).toISOString() : null;
+      const requestedCount = Number(body.count ?? 1);
+      if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 100) {
+        return json({ error: "Quantity must be an integer from 1 to 100" }, 400, origin);
+      }
+      const count = requestedCount;
+      let expiresAt: string | null = null;
+      if (body.expires_at !== null && body.expires_at !== undefined && body.expires_at !== "") {
+        const expiryDate = new Date(body.expires_at);
+        if (!Number.isFinite(expiryDate.getTime()) || expiryDate.getTime() <= Date.now()) {
+          return json({ error: "Expiration must be a valid future date" }, 400, origin);
+        }
+        expiresAt = expiryDate.toISOString();
+      }
       const generated: string[] = [];
 
       for (let i = 0; i < count; i++) {
@@ -215,7 +226,16 @@ Deno.serve(async (req) => {
       if (error) throw error;
       const licenses = await Promise.all((data ?? []).map(async (license: any) => {
         const { key_encrypted, ...safeLicense } = license;
-        return { ...safeLicense, key: key_encrypted ? await decryptLicenseKey(key_encrypted) : null };
+        let key: string | null = null;
+        if (key_encrypted) {
+          try {
+            key = await decryptLicenseKey(key_encrypted);
+          } catch (decryptError) {
+            // Keep inventory usable if one legacy/corrupt encrypted key cannot be opened.
+            console.error("Could not decrypt a stored license key:", license.id, decryptError);
+          }
+        }
+        return { ...safeLicense, key };
       }));
       return json({ licenses }, 200, origin);
     }
@@ -262,8 +282,8 @@ Deno.serve(async (req) => {
     return json({ error: "Unknown action" }, 400, origin);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";
-    const status = message.includes("Authentication") ? 401 :
-      message.includes("authorized") ? 403 : 500;
+    const status = message.includes("Authentication") || message.includes("Invalid session") ? 401 :
+      message.toLowerCase().includes("authorized") ? 403 : 500;
     return json({ error: status === 500 ? "Request failed" : message }, status, origin);
   }
 });
