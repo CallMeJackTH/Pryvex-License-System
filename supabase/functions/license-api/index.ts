@@ -85,12 +85,46 @@ Deno.serve(async (req) => {
       const deviceId = String(body.device_id ?? "").trim();
       const discordLabel = String(body.discord_id ?? "").trim().slice(0, 32) || null;
 
-      if (!/^PRYVEX-[A-Z0-9-]{12,64}$/.test(licenseKey) || deviceId.length < 8 || deviceId.length > 256) {
-        return json({ valid: false, error: "Invalid key or device identifier" }, 400, origin);
+      if (!/^PRYVEX-[A-Z0-9-]{12,64}$/.test(licenseKey)) {
+        return json({ valid: false, code: "KEY_INVALID", error: "Invalid license key" }, 400, origin);
+      }
+      if (deviceId.length < 8 || deviceId.length > 256) {
+        return json({ valid: false, code: "DEVICE_INVALID", error: "Invalid device identifier" }, 400, origin);
       }
 
       const keyHash = await hmacHex(KEY_HASH_SECRET, licenseKey);
       const deviceHash = await hmacHex(DEVICE_HASH_SECRET, deviceId);
+
+      // Check the stored record first so the client receives an accurate reason.
+      const { data: license, error: lookupError } = await db.from("license_keys")
+        .select("id,status,expires_at,bound_device_hash,plan")
+        .eq("key_hash", keyHash)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      if (!license) {
+        const { data: revoked, error: revokedError } = await db.from("license_key_revocations")
+          .select("key_hash").eq("key_hash", keyHash).maybeSingle();
+        if (revokedError) throw revokedError;
+        return json({
+          valid: false,
+          code: revoked ? "KEY_DELETED" : "KEY_INVALID",
+          error: revoked ? "This license key has been deleted" : "License key not found"
+        }, 403, origin);
+      }
+
+      if (license.status === "disabled") {
+        return json({ valid: false, code: "KEY_DISABLED", error: "This license key is disabled" }, 403, origin);
+      }
+      if (license.status === "banned") {
+        return json({ valid: false, code: "KEY_BANNED", error: "This license key is banned" }, 403, origin);
+      }
+      if (license.expires_at && new Date(license.expires_at).getTime() <= Date.now()) {
+        return json({ valid: false, code: "KEY_EXPIRED", error: "This license key has expired" }, 403, origin);
+      }
+      if (license.bound_device_hash && license.bound_device_hash !== deviceHash) {
+        return json({ valid: false, code: "DEVICE_MISMATCH", error: "License key is bound to another device" }, 403, origin);
+      }
 
       const { data, error } = await db.rpc("claim_license_device", {
         p_key_hash: keyHash,
@@ -101,7 +135,7 @@ Deno.serve(async (req) => {
 
       const row = data?.[0];
       if (!row) {
-        return json({ valid: false, error: "Key invalid, expired, disabled, or bound to another device" }, 403, origin);
+        return json({ valid: false, code: "KEY_INVALID", error: "License verification failed" }, 403, origin);
       }
 
       await db.from("license_events").insert({
@@ -109,7 +143,12 @@ Deno.serve(async (req) => {
         event_type: "verify_success",
         detail: { device_bound: true },
       });
-      return json({ valid: true, status: row.license_status, expires_at: row.expires_at }, 200, origin);
+      return json({
+        valid: true,
+        plan: license.plan ?? "premium",
+        status: row.license_status,
+        expires_at: row.expires_at
+      }, 200, origin);
     }
 
     // All actions below require an authenticated Discord admin.
@@ -167,6 +206,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
+      const { data: existing, error: findError } = await db.from("license_keys")
+        .select("key_hash,key_prefix").eq("id", licenseId).maybeSingle();
+      if (findError) throw findError;
+      if (existing) {
+        const { error: revokeError } = await db.from("license_key_revocations")
+          .upsert({ key_hash: existing.key_hash, key_prefix: existing.key_prefix }, { onConflict: "key_hash" });
+        if (revokeError) throw revokeError;
+      }
       const { error } = await db.from("license_keys").delete().eq("id", licenseId);
       if (error) throw error;
       return json({ success: true }, 200, origin);
