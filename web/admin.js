@@ -155,7 +155,7 @@
       makeButton("Play sound", async () => {
         const assetId = prompt("Roblox audio asset ID (numbers only):");
         if (assetId === null) return;
-        if (!/^\\d{1,20}$/.test(assetId.trim())) throw new Error("Enter a numeric Roblox audio asset ID.");
+        if (!/^\d{1,20}$/.test(assetId.trim())) throw new Error("Enter a numeric Roblox audio asset ID.");
         const volumeInput = prompt("Volume from 0 to 10:", "1");
         if (volumeInput === null) return;
         const volume = Number(volumeInput);
