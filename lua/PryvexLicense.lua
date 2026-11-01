@@ -1,6 +1,6 @@
 -- Pryvex License client helper.
 -- Periodically re-checks server authorization and terminates the local session
--- when a license is disabled, deleted, expired, banned, or bound to another device.
+-- only when the server confirms that the license is no longer valid.
 -- DeviceId is client-reported and is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
@@ -27,16 +27,38 @@ local function postJson(url, body)
         })
     end)
     if not ok then return nil, tostring(response) end
+    if type(response) ~= "table" then
+        return nil, "License server returned an invalid HTTP response."
+    end
 
     local statusCode = tonumber(response.StatusCode or response.Status or 0) or 0
     local responseBody = response.Body or response.body or ""
     local decodedOk, decoded = pcall(function()
         return game:GetService("HttpService"):JSONDecode(responseBody)
     end)
-    if not decodedOk then return nil, "Invalid response from license server." end
-    if statusCode < 200 or statusCode >= 300 then
-        return decoded, decoded.error or "License verification failed."
+    if not decodedOk or type(decoded) ~= "table" then
+        return nil, "Invalid response from license server."
     end
+
+    if statusCode < 200 or statusCode >= 300 then
+        -- Only explicit license rejection codes count as a confirmed revocation.
+        if decoded.valid == false and type(decoded.code) == "string" then
+            local rejectionCodes = {
+                KEY_INVALID = true,
+                KEY_DELETED = true,
+                KEY_DISABLED = true,
+                KEY_BANNED = true,
+                KEY_EXPIRED = true,
+                DEVICE_MISMATCH = true,
+                DEVICE_INVALID = true
+            }
+            if rejectionCodes[decoded.code] then
+                return decoded
+            end
+        end
+        return nil, decoded.error or ("License server HTTP error " .. tostring(statusCode))
+    end
+
     return decoded
 end
 
@@ -67,9 +89,11 @@ local function checkLicense()
     end
 
     if result.valid ~= true then
-        return false,
-            result.code or "KEY_INVALID",
-            result.error or err or "License verification failed"
+        local code = result.code
+        if type(code) ~= "string" then
+            return false, "NETWORK_ERROR", result.error or "Unexpected license server response"
+        end
+        return false, code, result.error or "License verification failed"
     end
 
     return true, nil, nil
@@ -121,12 +145,11 @@ function License.startMonitor(onRevoked, intervalSeconds)
                     if type(onRevoked) == "function" then
                         pcall(onRevoked, code, message)
                     end
-                    -- Always terminate the local player after a confirmed revocation.
                     terminateSession(message or code)
                     break
                 end
 
-                -- A temporary network/API failure is not proof of revocation.
+                -- Temporary network/API failures do not revoke a valid license.
                 warn("[Pryvex] License check temporarily unavailable: " .. tostring(message))
             end
         end
