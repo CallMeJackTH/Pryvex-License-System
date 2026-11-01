@@ -189,7 +189,7 @@ if type(License.startMonitor) == "function" then
         pcall(function()
             game:GetService("Players").LocalPlayer:Kick(reason)
         end)
-    end, 30)
+    end, 2)
 end
 
 return library
