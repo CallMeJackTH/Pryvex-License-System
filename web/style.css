@@ -36,3 +36,13 @@ footer{display:flex;justify-content:space-between;gap:15px;border-top:1px solid 
 .copy-key-btn:hover{background:#1b3b38;border-color:#6bc9b7}
 .copy-key-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
 @media(max-width:760px){.license-cell{min-width:0;max-width:none}.license-code{font-size:11px}}
+
+
+/* Live Roblox player sessions */
+.sessions-panel{margin-top:16px}
+.sessions-note{font-size:11px;margin:-8px 0 14px}
+.sessions-table{min-width:760px}
+.player-name{color:#e3f4f1;font-weight:700}
+.sessions-table .danger{border:1px solid #6a3442;background:#301a24;color:#ffb4c0;border-radius:7px;padding:6px 10px;font-size:10px}
+.sessions-table .danger:disabled{opacity:.55;cursor:default;transform:none}
+@media(max-width:760px){.sessions-table{min-width:0}.sessions-panel tbody tr{grid-template-columns:1fr 1fr}.sessions-panel tbody td:last-child{grid-column:1/-1}}
