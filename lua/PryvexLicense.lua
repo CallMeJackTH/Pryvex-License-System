@@ -96,11 +96,23 @@ function License.startMonitor(onRevoked, intervalSeconds)
 
             local valid, code, message = checkLicense()
             if not valid then
-                License._monitorRunning = false
-                if type(onRevoked) == "function" then
-                    pcall(onRevoked, code, message)
+                local revokedCodes = {
+                    KEY_DISABLED = true,
+                    KEY_DELETED = true,
+                    KEY_INVALID = true,
+                    KEY_EXPIRED = true,
+                    DEVICE_MISMATCH = true
+                }
+
+                if revokedCodes[code] then
+                    License._monitorRunning = false
+                    if type(onRevoked) == "function" then
+                        pcall(onRevoked, code, message)
+                    end
+                    break
+                else
+                    warn("[Pryvex] License server temporarily unavailable: " .. tostring(message))
                 end
-                break
             end
         end
     end)
