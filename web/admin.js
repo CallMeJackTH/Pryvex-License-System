@@ -219,7 +219,7 @@
     $("login-message").textContent = "Redirecting to Discord…";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
-      options: { redirectTo: window.location.href }
+      options: { redirectTo: `${window.location.origin}${window.location.pathname}` }
     });
     if (error) $("login-message").textContent = error.message;
   });
@@ -284,5 +284,5 @@
 
   const params = new URLSearchParams(window.location.search);
   const authError = params.get("error_description") || params.get("error");
-  if (authError) $("login-message").textContent = decodeURIComponent(authError.replace(/\\+/g, " "));
+  if (authError) $("login-message").textContent = authError;
 })();
