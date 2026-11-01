@@ -136,7 +136,7 @@ end
 function License.startMonitor(onRevoked, intervalSeconds)
     -- Fast polling gives Disable/Delete a short detection delay.
     -- This is client polling, not a guaranteed server push; network latency still applies.
-    intervalSeconds = math.max(2, tonumber(intervalSeconds) or 2)
+    intervalSeconds = math.max(0.5, tonumber(intervalSeconds) or 0.5)
     if License._monitorRunning then return false end
     License._monitorRunning = true
 
