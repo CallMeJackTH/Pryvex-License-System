@@ -18,7 +18,7 @@
    const status=document.createElement("td");status.textContent=s.enabled?"Enabled":"Disabled";
    const actions=document.createElement("td");actions.className="actions";
    const button=(label,fn,cls="secondary-btn")=>{const b=document.createElement("button");b.className=cls;b.textContent=label;b.onclick=async()=>{b.disabled=true;try{await fn();}catch(e){toast(e.message);}finally{b.disabled=false;}};actions.append(b);};
-   button("Issue code",async()=>{const d=await api("issue_code",{id:s.id});const text=d.code;try{await navigator.clipboard.writeText(text);toast("One-time code copied. Expires in 90 seconds.");}catch{prompt("Copy this one-time code (expires in 90 seconds):",text);}});
+   button("Issue permanent code",async()=>{const d=await api("issue_code",{id:s.id});const text=d.code;try{await navigator.clipboard.writeText(text);toast("Permanent access code copied. It does not expire.");}catch{prompt("Copy this permanent access code. Keep it private:",text);}});
    button("Edit",()=>{$("script-id").value=s.id;$("script-name").value=s.name;$("script-url").value=s.raw_url;window.scrollTo({top:0,behavior:"smooth"});});
    button(s.enabled?"Disable":"Enable",async()=>{await api("save_script",{id:s.id,name:s.name,raw_url:s.raw_url,enabled:!s.enabled});await refresh();toast("Script status updated.");});
    button("Delete",async()=>{if(!confirm("Delete this script? Existing handoff codes will also be deleted."))return;await api("delete_script",{id:s.id});await refresh();toast("Script deleted.");},"danger");
