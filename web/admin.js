@@ -84,7 +84,12 @@
       player.dataset.label = "Roblox player";
       const name = document.createElement("strong");
       name.className = "player-name";
-      name.textContent = item.roblox_username || "Unknown";
+      name.textContent = item.roblox_display_name || item.roblox_username || "Unknown";
+      const handle = document.createElement("div");
+      handle.className = "muted";
+      handle.style.fontSize = "11px";
+      handle.textContent = item.roblox_username ? "@" + item.roblox_username : "Username unavailable";
+      player.append(handle);
       player.append(name);
 
       const userId = document.createElement("td");
