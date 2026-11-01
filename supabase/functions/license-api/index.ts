@@ -174,6 +174,35 @@ Deno.serve(async (req) => {
         return json({ valid: false, code: "KEY_INVALID", error: "License verification failed" }, 403, origin);
       }
 
+      // Register this Roblox client session for the admin's live-user list.
+      const sessionId = String(body.session_id ?? "");
+      const robloxUsername = String(body.roblox_username ?? "").trim().slice(0, 32);
+      const robloxUserId = Number(body.roblox_user_id ?? 0);
+      if (/^[0-9a-f-]{36}$/i.test(sessionId) && robloxUsername) {
+        const { data: liveSession, error: sessionError } = await db
+          .from("license_active_sessions")
+          .upsert({
+            session_id: sessionId,
+            license_id: row.license_id,
+            device_hash: deviceHash,
+            roblox_user_id: Number.isSafeInteger(robloxUserId) && robloxUserId > 0 ? robloxUserId : null,
+            roblox_username: robloxUsername,
+            place_id: Number.isSafeInteger(Number(body.place_id)) && Number(body.place_id) > 0 ? Number(body.place_id) : null,
+            game_id: String(body.game_id ?? "").slice(0, 128) || null,
+            last_seen_at: new Date().toISOString()
+          }, { onConflict: "session_id" })
+          .select("kick_requested,kick_message")
+          .single();
+        if (sessionError) throw sessionError;
+        if (liveSession?.kick_requested) {
+          return json({
+            valid: true,
+            kick_requested: true,
+            kick_message: liveSession.kick_message ?? "An administrator disconnected this session."
+          }, 200, origin);
+        }
+      }
+
       await db.from("license_events").insert({
         license_id: row.license_id,
         event_type: "verify_success",
@@ -181,6 +210,7 @@ Deno.serve(async (req) => {
       });
       return json({
         valid: true,
+        kick_requested: false,
         plan: license.plan ?? "premium",
         status: row.license_status,
         expires_at: row.expires_at
@@ -217,6 +247,58 @@ Deno.serve(async (req) => {
         generated.push(key);
       }
       return json({ keys: generated }, 200, origin);
+    }
+
+    if (action === "list_sessions") {
+      const cutoff = new Date(Date.now() - 60_000).toISOString();
+      const { data: sessions, error: sessionsError } = await db
+        .from("license_active_sessions")
+        .select("session_id,license_id,roblox_user_id,roblox_username,place_id,game_id,last_seen_at,kick_requested")
+        .gte("last_seen_at", cutoff)
+        .order("last_seen_at", { ascending: false })
+        .limit(500);
+      if (sessionsError) throw sessionsError;
+
+      const licenseIds = [...new Set((sessions ?? []).map((s: any) => s.license_id))];
+      let licensesById: Record<string, any> = {};
+      if (licenseIds.length) {
+        const { data: licenses, error: licenseError } = await db
+          .from("license_keys").select("id,key_prefix,status").in("id", licenseIds);
+        if (licenseError) throw licenseError;
+        licensesById = Object.fromEntries((licenses ?? []).map((item: any) => [item.id, item]));
+      }
+
+      return json({
+        sessions: (sessions ?? []).map((item: any) => ({
+          ...item,
+          license: licensesById[item.license_id] ?? null
+        }))
+      }, 200, origin);
+    }
+
+    if (action === "kick_session") {
+      const sessionId = String(body.session_id ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(sessionId)) {
+        return json({ error: "Invalid session ID" }, 400, origin);
+      }
+      const cutoff = new Date(Date.now() - 90_000).toISOString();
+      const { data: target, error: targetError } = await db
+        .from("license_active_sessions")
+        .select("session_id")
+        .eq("session_id", sessionId)
+        .gte("last_seen_at", cutoff)
+        .maybeSingle();
+      if (targetError) throw targetError;
+      if (!target) return json({ error: "This player is no longer online." }, 404, origin);
+
+      const { error } = await db.from("license_active_sessions")
+        .update({
+          kick_requested: true,
+          kick_message: "You were disconnected by a Pryvex administrator."
+        })
+        .eq("session_id", sessionId);
+      if (error) throw error;
+      return json({ success: true }, 200, origin);
     }
 
     if (action === "list") {
