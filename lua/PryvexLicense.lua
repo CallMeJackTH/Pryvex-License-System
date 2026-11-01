@@ -1,6 +1,6 @@
 -- Pryvex License client helper.
--- Periodically re-checks the license so server-side disable/delete takes effect in-session.
--- DeviceId is client-reported and can be spoofed; it is not hardware attestation.
+-- Re-checks the server so disabled/deleted licenses stop working in-session.
+-- DeviceId is client-reported and is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
 
@@ -27,7 +27,7 @@ local function postJson(url, body)
     end)
     if not ok then return nil, tostring(response) end
 
-    local statusCode = response.StatusCode or response.Status or 0
+    local statusCode = tonumber(response.StatusCode or response.Status or 0) or 0
     local responseBody = response.Body or response.body or ""
     local decodedOk, decoded = pcall(function()
         return game:GetService("HttpService"):JSONDecode(responseBody)
@@ -42,13 +42,13 @@ end
 local License = {}
 
 local function checkLicense()
-    local env = getgenv and getgenv() or _G
+    local env = (getgenv and getgenv()) or _G
     local key = env.Key
     local deviceId = env.DeviceId
     local discordId = env.id
 
     if type(key) ~= "string" or key == "" then
-        return false, "KEY_INVALID", "Invalid license key"
+        return false, "KEY_INVALID", "Missing license key"
     end
     if type(deviceId) ~= "string" or #deviceId < 8 then
         return false, "DEVICE_INVALID", "Invalid device identifier"
@@ -61,32 +61,33 @@ local function checkLicense()
         discord_id = type(discordId) == "string" and discordId or nil
     })
 
-    if not result or result.valid ~= true or result.plan ~= "premium" then
-        return false,
-            result and result.code or "NETWORK_ERROR",
-            result and result.error or err or "License verification failed"
+    if not result then
+        return false, "NETWORK_ERROR", err or "License server unavailable"
     end
 
+    if result.valid ~= true then
+        return false,
+            result.code or "KEY_INVALID",
+            result.error or err or "License verification failed"
+    end
+
+    -- The API's valid=true response is authoritative. Older API responses
+    -- do not include a plan field, so do not reject a valid key for that.
     return true, nil, nil
 end
 
 function License.verify()
     local valid, code, message = checkLicense()
     if not valid then
-        warn("[Pryvex] " .. tostring(message))
         return false, code, message
     end
-
     print("[Pryvex] Premium license verified.")
     return true
 end
 
 function License.startMonitor(onRevoked, intervalSeconds)
     intervalSeconds = math.max(15, tonumber(intervalSeconds) or 30)
-
-    if License._monitorRunning then
-        return false
-    end
+    if License._monitorRunning then return false end
     License._monitorRunning = true
 
     task.spawn(function()
@@ -99,6 +100,7 @@ function License.startMonitor(onRevoked, intervalSeconds)
                 local revokedCodes = {
                     KEY_DISABLED = true,
                     KEY_DELETED = true,
+                    KEY_BANNED = true,
                     KEY_INVALID = true,
                     KEY_EXPIRED = true,
                     DEVICE_MISMATCH = true
@@ -110,9 +112,11 @@ function License.startMonitor(onRevoked, intervalSeconds)
                         pcall(onRevoked, code, message)
                     end
                     break
-                else
-                    warn("[Pryvex] License server temporarily unavailable: " .. tostring(message))
                 end
+
+                -- Temporary network/API failures must never be treated as
+                -- a wrong key or revoke a currently working session.
+                warn("[Pryvex] License check temporarily unavailable: " .. tostring(message))
             end
         end
     end)
