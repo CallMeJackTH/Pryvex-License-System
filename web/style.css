@@ -46,3 +46,6 @@ footer{display:flex;justify-content:space-between;gap:15px;border-top:1px solid 
 .sessions-table .danger{border:1px solid #6a3442;background:#301a24;color:#ffb4c0;border-radius:7px;padding:6px 10px;font-size:10px}
 .sessions-table .danger:disabled{opacity:.55;cursor:default;transform:none}
 @media(max-width:760px){.sessions-table{min-width:0}.sessions-panel tbody tr{grid-template-columns:1fr 1fr}.sessions-panel tbody td:last-child{grid-column:1/-1}}
+
+.sessions-table{min-width:1040px}.job-id-cell code{display:block;max-width:230px;overflow-wrap:anywhere;color:#a8c7df;font:10px/1.5 'DM Mono',monospace}.sessions-table .actions{min-width:190px}.sessions-table .actions button{white-space:nowrap}
+@media(max-width:760px){.sessions-table{min-width:0}.sessions-panel tbody tr{grid-template-columns:1fr 1fr}.sessions-panel tbody td:last-child{grid-column:1/-1}.job-id-cell code{max-width:100%}}
