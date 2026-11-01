@@ -49,7 +49,6 @@ if type(env.DeviceId) ~= "string" or #env.DeviceId < 8 then
     env.DeviceId = deviceId
 end
 
-local libraryURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-Hub/main/dist/PryvexHub.lua"
 local helperURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/main/lua/PryvexLicense.lua"
 
 local ok, helperSource = pcall(function()
@@ -213,64 +212,8 @@ do
 end
 
 
-local downloadOk, librarySource = pcall(function()
-    return game:HttpGet(libraryURL)
-end)
-if not downloadOk or type(librarySource) ~= "string" or librarySource == "" then
-    return stop("Could not download Pryvex Hub.")
-end
 
-local libraryCompileOk, loadLibrary = pcall(loadstring, librarySource)
-if not libraryCompileOk or type(loadLibrary) ~= "function" then
-    return stop("Could not compile Pryvex Hub.")
-end
-
-local executeOk, library = pcall(loadLibrary)
-if not executeOk or type(library) ~= "table" then
-    return stop("Pryvex Hub initialization failed: " .. tostring(library))
-end
-
-env.PryvexHub = library
-
-local windowOk, window = pcall(function()
-    return library:CreateWindow({
-        Title = "Pryvex Hub",
-        SubTitle = "Premium",
-        TabWidth = 150,
-        Size = UDim2.fromOffset(580, 450),
-        Acrylic = false,
-        Theme = "Dark",
-        MinimizeKey = Enum.KeyCode.LeftControl
-    })
-end)
-
-if not windowOk or not window then
-    return stop("UI window creation failed: " .. tostring(window))
-end
-
-pcall(function()
-    if library.GUI then
-        library.GUI.Enabled = true
-        library.GUI.DisplayOrder = 999999
-    end
-    if window.Root then window.Root.Visible = true end
-end)
-
-local tabsOk, tabs = pcall(function()
-    return {
-        Main = window:AddTab({ Title = "หน้าหลัก", Icon = "home" }),
-        Settings = window:AddTab({ Title = "ตั้งค่า", Icon = "settings" })
-    }
-end)
-if not tabsOk then
-    return stop("UI tab creation failed: " .. tostring(tabs))
-end
-
-env.PryvexWindow = window
-env.PryvexTabs = tabs
-pcall(function() window:SelectTab(1) end)
-
-print("[Pryvex] Premium verified. Pryvex Hub UI is ready.")
+-- Pryvex runs without the external UI library.
 
 if type(License.startMonitor) == "function" then
     License.startMonitor(function(code, serverMessage)
@@ -284,13 +227,6 @@ if type(License.startMonitor) == "function" then
             DEVICE_INVALID = "Device identifier is invalid."
         }
         local reason = reasons[code] or serverMessage or "License is no longer valid."
-
-        pcall(function()
-            if env.PryvexWindow and env.PryvexWindow.Destroy then
-                env.PryvexWindow:Destroy()
-            end
-            if library.GUI then library.GUI:Destroy() end
-        end)
 
         pcall(function()
             game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -307,4 +243,4 @@ if type(License.startMonitor) == "function" then
     end, 0.5)
 end
 
-return library
+return License
