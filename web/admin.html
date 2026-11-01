@@ -52,6 +52,15 @@
         <div class="generated-wrap"><div class="generated-head"><span>GENERATED KEYS</span><span>Shown once — save securely</span></div><textarea id="generated-keys" rows="3" readonly placeholder="Your new Premium keys will appear here…"></textarea><button id="copy-keys-btn" class="secondary-btn">Copy keys</button></div>
       </section>
 
+      <section class="panel sessions-panel">
+        <div class="section-title license-heading">
+          <div><p class="eyebrow">LIVE CONNECTIONS</p><h2>Players using keys</h2></div>
+          <button id="refresh-sessions-btn" class="secondary-btn">↻ Refresh players</button>
+        </div>
+        <p class="muted sessions-note">Shows Roblox players whose license check-in was received within the last 60 seconds.</p>
+        <div class="table-wrap"><table class="sessions-table"><thead><tr><th>ROBLOX PLAYER</th><th>USER ID</th><th>LICENSE</th><th>GAME / PLACE</th><th>LAST SEEN</th><th>ACTION</th></tr></thead><tbody id="session-rows"><tr><td colspan="6">Loading active players…</td></tr></tbody></table></div>
+      </section>
+
       <section class="panel licenses-panel">
         <div class="section-title license-heading"><div><p class="eyebrow">DATABASE</p><h2>License inventory</h2></div><button id="refresh-btn" class="secondary-btn">↻ Refresh</button></div>
         <div class="filters">
