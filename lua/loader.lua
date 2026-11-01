@@ -38,7 +38,7 @@ if type(env.DeviceId) ~= "string" or #env.DeviceId < 8 then
     env.DeviceId = deviceId
 end
 
-local libraryURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-Hub/main/dist/PryvexHub.lua"
+local libraryURL = "https://cdn.jsdelivr.net/gh/CallMeJackTH/Pryvex-Hub@main/dist/PryvexHub.lua"
 local helperURL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/main/lua/PryvexLicense.lua"
 
 local ok, helperSource = pcall(function()
