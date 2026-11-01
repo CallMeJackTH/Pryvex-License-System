@@ -4,6 +4,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const KEY_HASH_SECRET = Deno.env.get("KEY_HASH_SECRET")!;
 const DEVICE_HASH_SECRET = Deno.env.get("DEVICE_HASH_SECRET")!;
+const LICENSE_ENCRYPTION_SECRET = Deno.env.get("LICENSE_ENCRYPTION_SECRET")!;
 const ADMIN_DISCORD_IDS = (Deno.env.get("ADMIN_DISCORD_IDS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
@@ -34,6 +35,41 @@ async function hmacHex(secret: string, value: string): Promise<string> {
   );
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
   return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function encryptionKey() {
+  if (!LICENSE_ENCRYPTION_SECRET) throw new Error("License encryption is not configured");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(LICENSE_ENCRYPTION_SECRET));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function fromBase64(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+// Keys remain HMAC-hashed for verification and are also AES-GCM encrypted
+// so an authenticated administrator can view/copy them later.
+async function encryptLicenseKey(value: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, await encryptionKey(), new TextEncoder().encode(value),
+  );
+  return `${toBase64(iv)}.${toBase64(new Uint8Array(encrypted))}`;
+}
+
+async function decryptLicenseKey(value: string): Promise<string> {
+  const [ivPart, encryptedPart] = value.split(".");
+  if (!ivPart || !encryptedPart) throw new Error("Stored license key has an invalid format");
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: fromBase64(ivPart) }, await encryptionKey(), fromBase64(encryptedPart),
+  );
+  return new TextDecoder().decode(decrypted);
 }
 
 function randomKey(): string {
@@ -74,7 +110,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, origin);
 
   try {
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !KEY_HASH_SECRET || !DEVICE_HASH_SECRET) {
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !KEY_HASH_SECRET || !DEVICE_HASH_SECRET || !LICENSE_ENCRYPTION_SECRET) {
       return json({ error: "Server is not configured" }, 500, origin);
     }
     const body = await req.json();
@@ -164,7 +200,7 @@ Deno.serve(async (req) => {
         const keyHash = await hmacHex(KEY_HASH_SECRET, key);
         const prefix = key.slice(0, 16);
         const { error } = await db.from("license_keys").insert({
-          key_hash: keyHash, key_prefix: prefix, expires_at: expiresAt,
+          key_hash: keyHash, key_prefix: prefix, key_encrypted: await encryptLicenseKey(key), expires_at: expiresAt,
         });
         if (error) throw error;
         generated.push(key);
@@ -174,10 +210,14 @@ Deno.serve(async (req) => {
 
     if (action === "list") {
       const { data, error } = await db.from("license_keys")
-        .select("id,key_prefix,status,expires_at,bound_device_hash,discord_id_label,created_at,last_verified_at")
+        .select("id,key_prefix,key_encrypted,status,expires_at,bound_device_hash,discord_id_label,created_at,last_verified_at")
         .order("created_at", { ascending: false }).limit(500);
       if (error) throw error;
-      return json({ licenses: data ?? [] }, 200, origin);
+      const licenses = await Promise.all((data ?? []).map(async (license: any) => {
+        const { key_encrypted, ...safeLicense } = license;
+        return { ...safeLicense, key: key_encrypted ? await decryptLicenseKey(key_encrypted) : null };
+      }));
+      return json({ licenses }, 200, origin);
     }
 
     const licenseId = String(body.license_id ?? "");
