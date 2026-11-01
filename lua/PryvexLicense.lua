@@ -1,5 +1,6 @@
 -- Pryvex License client helper.
--- Re-checks the server so disabled/deleted licenses stop working in-session.
+-- Periodically re-checks server authorization and terminates the local session
+-- when a license is disabled, deleted, expired, banned, or bound to another device.
 -- DeviceId is client-reported and is not hardware attestation.
 
 local API_URL = "https://yfsmtoetvajschaeyagc.supabase.co/functions/v1/license-api"
@@ -71,9 +72,17 @@ local function checkLicense()
             result.error or err or "License verification failed"
     end
 
-    -- The API's valid=true response is authoritative. Older API responses
-    -- do not include a plan field, so do not reject a valid key for that.
     return true, nil, nil
+end
+
+local function terminateSession(message)
+    local players = game:GetService("Players")
+    local player = players.LocalPlayer
+    if player then
+        pcall(function()
+            player:Kick("[Pryvex] " .. (message or "Premium access has been revoked."))
+        end)
+    end
 end
 
 function License.verify()
@@ -103,19 +112,21 @@ function License.startMonitor(onRevoked, intervalSeconds)
                     KEY_BANNED = true,
                     KEY_INVALID = true,
                     KEY_EXPIRED = true,
-                    DEVICE_MISMATCH = true
+                    DEVICE_MISMATCH = true,
+                    DEVICE_INVALID = true
                 }
 
                 if revokedCodes[code] then
                     License._monitorRunning = false
                     if type(onRevoked) == "function" then
                         pcall(onRevoked, code, message)
+                    else
+                        terminateSession(message or code)
                     end
                     break
                 end
 
-                -- Temporary network/API failures must never be treated as
-                -- a wrong key or revoke a currently working session.
+                -- A temporary network/API failure is not proof of revocation.
                 warn("[Pryvex] License check temporarily unavailable: " .. tostring(message))
             end
         end
