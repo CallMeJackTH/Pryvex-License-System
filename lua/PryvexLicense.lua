@@ -151,16 +151,41 @@ function License.startMonitor(onRevoked, intervalSeconds)
             if not License._monitorRunning then break end
 
             local valid, code, message, details = checkLicense()
-            if valid and details and details.kick_requested == true then
-                License._monitorRunning = false
-                local kickMessage = details.kick_message or "An administrator disconnected this session."
-                local env = (getgenv and getgenv()) or _G
-                env._PryvexSessionId = nil
-                if type(onRevoked) == "function" then
-                    pcall(onRevoked, "ADMIN_KICK", kickMessage)
+            if valid and details and type(details.pending_command) == "table" then
+                local command = details.pending_command
+                if command.type == "message" then
+                    local text = tostring(command.text or ""):sub(1, 180)
+                    if text ~= "" then
+                        pcall(function()
+                            game:GetService("StarterGui"):SetCore("SendNotification", {
+                                Title = "Pryvex",
+                                Text = text,
+                                Duration = 8
+                            })
+                        end)
+                    end
+                elseif command.type == "play_sound" then
+                    local assetId = tostring(command.asset_id or "")
+                    local volume = tonumber(command.volume) or 1
+                    if assetId:match("^%d+$") then
+                        volume = math.clamp(volume, 0, 10)
+                        pcall(function()
+                            local sound = Instance.new("Sound")
+                            sound.Name = "PryvexAdminAudio"
+                            sound.SoundId = "rbxassetid://" .. assetId
+                            sound.Volume = volume
+                            sound.Looped = false
+                            sound.Parent = game:GetService("SoundService")
+                            sound:Play()
+                            sound.Ended:Connect(function()
+                                sound:Destroy()
+                            end)
+                            task.delay(120, function()
+                                if sound and sound.Parent then sound:Destroy() end
+                            end)
+                        end)
+                    end
                 end
-                terminateSession(kickMessage)
-                break
             end
 
             if not valid then
