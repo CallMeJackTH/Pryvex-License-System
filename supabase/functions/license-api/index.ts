@@ -286,19 +286,23 @@ Deno.serve(async (req) => {
       const cutoff = new Date(Date.now() - 90_000).toISOString();
       const { data: target, error: targetError } = await db
         .from("license_active_sessions")
-        .select("session_id")
+        .select("session_id,license_id,device_hash")
         .eq("session_id", sessionId)
         .gte("last_seen_at", cutoff)
         .maybeSingle();
       if (targetError) throw targetError;
       if (!target) return json({ error: "This player is no longer online." }, 404, origin);
 
+      // A player may have multiple loader sessions. Kick all recent sessions
+      // belonging to the selected license on the same device.
       const { error } = await db.from("license_active_sessions")
         .update({
           kick_requested: true,
           kick_message: "You were disconnected by a Pryvex administrator."
         })
-        .eq("session_id", sessionId);
+        .eq("license_id", target.license_id)
+        .eq("device_hash", target.device_hash)
+        .gte("last_seen_at", cutoff);
       if (error) throw error;
       return json({ success: true }, 200, origin);
     }
