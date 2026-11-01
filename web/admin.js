@@ -71,7 +71,7 @@
     if (!sessions.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 6;
+      td.colSpan = 7;
       td.textContent = "No players currently reporting an active session.";
       tr.append(td);
       tbody.append(tr);
@@ -89,8 +89,7 @@
       handle.className = "muted";
       handle.style.fontSize = "11px";
       handle.textContent = item.roblox_username ? "@" + item.roblox_username : "Username unavailable";
-      player.append(handle);
-      player.append(name);
+      player.append(handle, name);
 
       const userId = document.createElement("td");
       userId.dataset.label = "User ID";
@@ -101,35 +100,74 @@
       license.textContent = item.license?.key_prefix || "Unknown";
 
       const place = document.createElement("td");
-      place.dataset.label = "Game / Place";
-      place.textContent = item.place_id ? String(item.place_id) : "Unknown";
+      place.dataset.label = "Place ID";
+      place.textContent = item.place_id ? String(item.place_id) : "Unavailable";
+
+      const job = document.createElement("td");
+      job.dataset.label = "Job ID";
+      job.className = "job-id-cell";
+      const jobText = document.createElement("code");
+      jobText.textContent = item.game_id || "Unavailable";
+      job.append(jobText);
+      if (item.game_id) {
+        const copyJob = document.createElement("button");
+        copyJob.type = "button";
+        copyJob.className = "copy-key-btn";
+        copyJob.textContent = "Copy Job ID";
+        copyJob.addEventListener("click", async () => {
+          try { await copyText(item.game_id); message("Job ID copied."); }
+          catch (error) { message(error.message); }
+        });
+        job.append(copyJob);
+      }
 
       const lastSeen = document.createElement("td");
       lastSeen.dataset.label = "Last seen";
       lastSeen.textContent = item.last_seen_at ? new Date(item.last_seen_at).toLocaleTimeString() : "Unknown";
 
-      const action = document.createElement("td");
-      action.dataset.label = "Action";
-      action.className = "actions";
-      const kick = document.createElement("button");
-      kick.type = "button";
-      kick.className = "danger";
-      kick.textContent = item.kick_requested ? "Kick sent" : "Kick player";
-      kick.disabled = !!item.kick_requested;
-      kick.addEventListener("click", async () => {
-        if (!confirm(`Kick ${item.roblox_username || "this player"} from the current session?`)) return;
-        kick.disabled = true;
-        try {
-          await api("kick_session", { session_id: item.session_id });
-          kick.textContent = "Kick sent";
-          message("Kick request sent. The player will be disconnected on their next check-in.");
-        } catch (error) {
-          kick.disabled = false;
-          message(error.message || "Could not send kick request.");
-        }
+      const controls = document.createElement("td");
+      controls.dataset.label = "Controls";
+      controls.className = "actions";
+
+      const makeButton = (label, handler) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "secondary-btn";
+        btn.textContent = label;
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          try { await handler(); }
+          catch (error) { message(error.message || "Command failed."); }
+          finally { btn.disabled = false; }
+        });
+        controls.append(btn);
+      };
+
+      makeButton("Send message", async () => {
+        const text = prompt("Message to show in the player's game (max 180 characters):");
+        if (text === null) return;
+        const clean = text.trim().slice(0, 180);
+        if (!clean) throw new Error("Message cannot be empty.");
+        await api("send_command", { session_id: item.session_id, command: { type: "message", text: clean } });
+        message("Message sent to " + (item.roblox_username || "player") + ".");
       });
-      action.append(kick);
-      tr.append(player, userId, license, place, lastSeen, action);
+
+      makeButton("Play sound", async () => {
+        const assetId = prompt("Roblox audio asset ID (numbers only):");
+        if (assetId === null) return;
+        if (!/^\\d{1,20}$/.test(assetId.trim())) throw new Error("Enter a numeric Roblox audio asset ID.");
+        const volumeInput = prompt("Volume from 0 to 10:", "1");
+        if (volumeInput === null) return;
+        const volume = Number(volumeInput);
+        if (!Number.isFinite(volume) || volume < 0 || volume > 10) throw new Error("Volume must be between 0 and 10.");
+        await api("send_command", {
+          session_id: item.session_id,
+          command: { type: "play_sound", asset_id: assetId.trim(), volume }
+        });
+        message("Sound command sent to " + (item.roblox_username || "player") + ".");
+      });
+
+      tr.append(player, userId, license, place, job, lastSeen, controls);
       tbody.append(tr);
     }
   }
