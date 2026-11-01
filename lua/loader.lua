@@ -122,81 +122,208 @@ do
         local oldGui = parent:FindFirstChild("PryvexMapPreLoader")
         if oldGui then oldGui:Destroy() end
 
+        local TweenService = game:GetService("TweenService")
         local gui = Instance.new("ScreenGui")
         gui.Name = "PryvexMapPreLoader"
         gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
         gui.DisplayOrder = 999998
+        gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         gui.Parent = parent
 
+        local function corner(object, radius)
+            local item = Instance.new("UICorner")
+            item.CornerRadius = UDim.new(0, radius)
+            item.Parent = object
+            return item
+        end
+
+        local function stroke(object, color, transparency, thickness)
+            local item = Instance.new("UIStroke")
+            item.Color = color
+            item.Transparency = transparency or 0
+            item.Thickness = thickness or 1
+            item.Parent = object
+            return item
+        end
+
+        local function label(parentObject, name, text, position, size, font, textSize, color)
+            local item = Instance.new("TextLabel")
+            item.Name = name
+            item.BackgroundTransparency = 1
+            item.Position = position
+            item.Size = size
+            item.Font = font
+            item.Text = text
+            item.TextSize = textSize
+            item.TextColor3 = color
+            item.TextXAlignment = Enum.TextXAlignment.Left
+            item.TextYAlignment = Enum.TextYAlignment.Center
+            item.Parent = parentObject
+            return item
+        end
+
+        -- Soft dim layer and Fluent-inspired dark acrylic window.
+        local dim = Instance.new("Frame")
+        dim.Name = "Backdrop"
+        dim.Size = UDim2.fromScale(1, 1)
+        dim.BackgroundColor3 = Color3.fromRGB(4, 5, 12)
+        dim.BackgroundTransparency = 0.42
+        dim.BorderSizePixel = 0
+        dim.Parent = gui
+
         local panel = Instance.new("Frame")
-        panel.Name = "Panel"
+        panel.Name = "AcrylicWindow"
         panel.AnchorPoint = Vector2.new(0.5, 0.5)
-        panel.Position = UDim2.fromScale(0.5, 0.5)
-        panel.Size = UDim2.fromOffset(390, 150)
-        panel.BackgroundColor3 = Color3.fromRGB(13, 15, 23)
+        panel.Position = UDim2.fromScale(0.5, 0.53)
+        panel.Size = UDim2.fromOffset(470, 218)
+        panel.BackgroundColor3 = Color3.fromRGB(22, 22, 34)
+        panel.BackgroundTransparency = 0.08
         panel.BorderSizePixel = 0
-        panel.Parent = gui
-        Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+        panel.Parent = dim
+        corner(panel, 15)
+        stroke(panel, Color3.fromRGB(133, 112, 255), 0.58, 1)
 
-        local outline = Instance.new("UIStroke")
-        outline.Color = Color3.fromRGB(115, 105, 245)
-        outline.Transparency = 0.35
-        outline.Parent = panel
+        local panelGradient = Instance.new("UIGradient")
+        panelGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 31, 58)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(22, 23, 37)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 17, 29))
+        })
+        panelGradient.Rotation = 25
+        panelGradient.Parent = panel
 
-        local heading = Instance.new("TextLabel")
-        heading.BackgroundTransparency = 1
-        heading.Position = UDim2.fromOffset(20, 16)
-        heading.Size = UDim2.new(1, -40, 0, 28)
-        heading.Font = Enum.Font.GothamBold
-        heading.Text = "PRYVEX  /  MAP LOADER"
-        heading.TextColor3 = Color3.fromRGB(242, 243, 255)
-        heading.TextSize = 18
-        heading.TextXAlignment = Enum.TextXAlignment.Left
-        heading.Parent = panel
+        local accent = Instance.new("Frame")
+        accent.Name = "Accent"
+        accent.Size = UDim2.new(1, -36, 0, 2)
+        accent.Position = UDim2.fromOffset(18, 0)
+        accent.BackgroundColor3 = Color3.fromRGB(151, 91, 255)
+        accent.BorderSizePixel = 0
+        accent.Parent = panel
+        corner(accent, 2)
+        local accentGradient = Instance.new("UIGradient")
+        accentGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 75, 255)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(190, 105, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 150, 255))
+        })
+        accentGradient.Parent = accent
 
-        local gameLabel = Instance.new("TextLabel")
-        gameLabel.BackgroundTransparency = 1
-        gameLabel.Position = UDim2.fromOffset(20, 52)
-        gameLabel.Size = UDim2.new(1, -40, 0, 22)
-        gameLabel.Font = Enum.Font.GothamMedium
-        gameLabel.Text = map.Name .. "  •  " .. placeId
-        gameLabel.TextColor3 = Color3.fromRGB(174, 181, 205)
-        gameLabel.TextSize = 12
-        gameLabel.TextXAlignment = Enum.TextXAlignment.Left
-        gameLabel.Parent = panel
+        local logo = Instance.new("Frame")
+        logo.Name = "Logo"
+        logo.Position = UDim2.fromOffset(22, 22)
+        logo.Size = UDim2.fromOffset(42, 42)
+        logo.BackgroundColor3 = Color3.fromRGB(105, 66, 220)
+        logo.BorderSizePixel = 0
+        logo.Parent = panel
+        corner(logo, 12)
+        local logoGradient = Instance.new("UIGradient")
+        logoGradient.Color = ColorSequence.new(Color3.fromRGB(157, 93, 255), Color3.fromRGB(83, 72, 220))
+        logoGradient.Rotation = 45
+        logoGradient.Parent = logo
+        local logoText = label(logo, "LogoText", "P", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.Font.GothamBold, 25, Color3.fromRGB(255, 255, 255))
+        logoText.TextXAlignment = Enum.TextXAlignment.Center
 
-        local statusLabel = Instance.new("TextLabel")
-        statusLabel.BackgroundTransparency = 1
-        statusLabel.Position = UDim2.fromOffset(20, 88)
-        statusLabel.Size = UDim2.new(1, -40, 0, 34)
-        statusLabel.Font = Enum.Font.Gotham
-        statusLabel.TextWrapped = true
-        statusLabel.Text = map.URL == "" and "ยังไม่ได้กำหนดลิงก์สคริปต์ของเกมนี้" or "กำลังเตรียมสคริปต์..."
-        statusLabel.TextColor3 = map.URL == "" and Color3.fromRGB(255, 190, 100) or Color3.fromRGB(120, 220, 170)
-        statusLabel.TextSize = 13
-        statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-        statusLabel.Parent = panel
+        label(panel, "Brand", "PRYVEX", UDim2.fromOffset(76, 20), UDim2.fromOffset(220, 23), Enum.Font.GothamBold, 17, Color3.fromRGB(246, 244, 255))
+        local subTitle = label(panel, "SubTitle", "PREMIUM  /  MAP LOADER", UDim2.fromOffset(77, 43), UDim2.fromOffset(260, 17), Enum.Font.GothamMedium, 10, Color3.fromRGB(157, 151, 190))
+        subTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+        local pill = Instance.new("Frame")
+        pill.Name = "SecureBadge"
+        pill.AnchorPoint = Vector2.new(1, 0)
+        pill.Position = UDim2.new(1, -20, 0, 29)
+        pill.Size = UDim2.fromOffset(92, 25)
+        pill.BackgroundColor3 = Color3.fromRGB(65, 49, 103)
+        pill.BackgroundTransparency = 0.25
+        pill.BorderSizePixel = 0
+        pill.Parent = panel
+        corner(pill, 8)
+        local badgeText = label(pill, "BadgeText", "● SECURE", UDim2.fromOffset(8, 0), UDim2.new(1, -12, 1, 0), Enum.Font.GothamBold, 9, Color3.fromRGB(197, 169, 255))
+        badgeText.TextXAlignment = Enum.TextXAlignment.Center
+
+        local separator = Instance.new("Frame")
+        separator.Position = UDim2.fromOffset(20, 78)
+        separator.Size = UDim2.new(1, -40, 0, 1)
+        separator.BackgroundColor3 = Color3.fromRGB(104, 98, 133)
+        separator.BackgroundTransparency = 0.72
+        separator.BorderSizePixel = 0
+        separator.Parent = panel
+
+        label(panel, "LoadingCaption", "กำลังเตรียมสคริปต์สำหรับเกม", UDim2.fromOffset(23, 91), UDim2.new(1, -46, 0, 18), Enum.Font.Gotham, 11, Color3.fromRGB(164, 160, 187))
+        local gameLabel = label(panel, "GameName", map.Name, UDim2.fromOffset(23, 111), UDim2.new(1, -46, 0, 25), Enum.Font.GothamSemibold, 16, Color3.fromRGB(244, 242, 255))
+        gameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+        local placeLabel = label(panel, "PlaceId", "PLACE ID  /  " .. placeId, UDim2.fromOffset(24, 138), UDim2.new(1, -48, 0, 15), Enum.Font.Gotham, 9, Color3.fromRGB(127, 125, 155))
+
+        local barBack = Instance.new("Frame")
+        barBack.Name = "ProgressTrack"
+        barBack.Position = UDim2.fromOffset(23, 165)
+        barBack.Size = UDim2.new(1, -46, 0, 5)
+        barBack.BackgroundColor3 = Color3.fromRGB(58, 55, 78)
+        barBack.BorderSizePixel = 0
+        barBack.Parent = panel
+        corner(barBack, 5)
+
+        local barFill = Instance.new("Frame")
+        barFill.Name = "ProgressFill"
+        barFill.Size = UDim2.new(0.08, 0, 1, 0)
+        barFill.BackgroundColor3 = Color3.fromRGB(151, 91, 255)
+        barFill.BorderSizePixel = 0
+        barFill.Parent = barBack
+        corner(barFill, 5)
+        local fillGradient = Instance.new("UIGradient")
+        fillGradient.Color = ColorSequence.new(Color3.fromRGB(111, 91, 255), Color3.fromRGB(194, 106, 255))
+        fillGradient.Parent = barFill
+
+        local statusLabel = label(panel, "Status", map.URL == "" and "ยังไม่ได้กำหนดลิงก์สคริปต์ของเกมนี้" or "กำลังเชื่อมต่อและดาวน์โหลด...", UDim2.fromOffset(23, 178), UDim2.new(1, -46, 0, 20), Enum.Font.Gotham, 10, map.URL == "" and Color3.fromRGB(255, 190, 115) or Color3.fromRGB(185, 177, 215))
+        statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+        panel.Size = UDim2.fromOffset(440, 205)
+        panel.BackgroundTransparency = 1
+        panel.Position = UDim2.fromScale(0.5, 0.56)
+        TweenService:Create(panel, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Size = UDim2.fromOffset(470, 218),
+            Position = UDim2.fromScale(0.5, 0.53),
+            BackgroundTransparency = 0.08
+        }):Play()
+
+        local progressTween
         if map.URL ~= "" then
+            progressTween = TweenService:Create(barFill, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+                Size = UDim2.new(0.82, 0, 1, 0)
+            })
+            progressTween:Play()
+
             task.spawn(function()
                 local downloadOk, source = pcall(function()
                     return game:HttpGet(map.URL)
                 end)
                 if not downloadOk or type(source) ~= "string" or source == "" then
+                    if progressTween then progressTween:Cancel() end
                     statusLabel.Text = "ดาวน์โหลดสคริปต์ไม่สำเร็จ"
-                    statusLabel.TextColor3 = Color3.fromRGB(255, 105, 120)
+                    statusLabel.TextColor3 = Color3.fromRGB(255, 112, 130)
+                    barFill.BackgroundColor3 = Color3.fromRGB(225, 75, 100)
+                    barFill.Size = UDim2.new(1, 0, 1, 0)
                     return
                 end
 
                 local compileOk, scriptFunction = pcall(loadstring, source)
                 if not compileOk or type(scriptFunction) ~= "function" then
+                    if progressTween then progressTween:Cancel() end
                     statusLabel.Text = "สคริปต์มีข้อผิดพลาด ไม่สามารถ Compile ได้"
-                    statusLabel.TextColor3 = Color3.fromRGB(255, 105, 120)
+                    statusLabel.TextColor3 = Color3.fromRGB(255, 112, 130)
+                    barFill.BackgroundColor3 = Color3.fromRGB(225, 75, 100)
+                    barFill.Size = UDim2.new(1, 0, 1, 0)
                     return
                 end
 
-                statusLabel.Text = "กำลังเริ่มสคริปต์..."
-                task.wait(0.25)
+                if progressTween then progressTween:Cancel() end
+                statusLabel.Text = "ตรวจสอบเสร็จแล้ว กำลังเปิดสคริปต์..."
+                statusLabel.TextColor3 = Color3.fromRGB(130, 224, 180)
+                TweenService:Create(barFill, TweenInfo.new(0.25), {
+                    Size = UDim2.new(1, 0, 1, 0)
+                }):Play()
+                task.wait(0.45)
                 gui:Destroy()
                 local runOk, runError = pcall(scriptFunction)
                 if not runOk then
@@ -204,8 +331,17 @@ do
                 end
             end)
         else
+            barFill.Size = UDim2.new(1, 0, 1, 0)
+            barFill.BackgroundColor3 = Color3.fromRGB(220, 155, 95)
             task.delay(4, function()
-                if gui and gui.Parent then gui:Destroy() end
+                if gui and gui.Parent then
+                    TweenService:Create(panel, TweenInfo.new(0.2), {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromOffset(440, 205)
+                    }):Play()
+                    task.wait(0.22)
+                    if gui and gui.Parent then gui:Destroy() end
+                end
             end)
         end
     end
