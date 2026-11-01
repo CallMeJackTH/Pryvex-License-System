@@ -58,10 +58,19 @@ local function createPreloader()
     stroke.Transparency = 0.25
     stroke.Parent = card
 
+    local brandIcon = Instance.new("ImageLabel")
+    brandIcon.Name = "PryvexIcon"
+    brandIcon.BackgroundTransparency = 1
+    brandIcon.Position = UDim2.fromOffset(19, 14)
+    brandIcon.Size = UDim2.fromOffset(30, 30)
+    brandIcon.Image = "rbxassetid://127972121421541"
+    brandIcon.ScaleType = Enum.ScaleType.Fit
+    brandIcon.Parent = card
+
     local title = Instance.new("TextLabel")
     title.BackgroundTransparency = 1
-    title.Position = UDim2.fromOffset(20, 15)
-    title.Size = UDim2.new(1, -40, 0, 28)
+    title.Position = UDim2.fromOffset(58, 15)
+    title.Size = UDim2.new(1, -78, 0, 28)
     title.Font = Enum.Font.GothamBold
     title.Text = "PRYVEX  /  LOADER"
     title.TextColor3 = Color3.fromRGB(238, 241, 255)
