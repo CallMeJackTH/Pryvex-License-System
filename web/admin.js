@@ -130,6 +130,63 @@
     }
   }
 
+  async function refreshHistory() {
+    const data = await api("list_player_history");
+    const players = data.players || [];
+    const tbody = $("history-rows");
+    tbody.replaceChildren();
+
+    if (!players.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.textContent = "No player history recorded yet. Players will appear after their next license check-in.";
+      tr.append(td);
+      tbody.append(tr);
+      return;
+    }
+
+    for (const item of players) {
+      const tr = document.createElement("tr");
+      const player = document.createElement("td");
+      player.dataset.label = "Roblox player";
+      const name = document.createElement("strong");
+      name.className = "player-name";
+      name.textContent = item.roblox_display_name || item.roblox_username || "Unknown";
+      const handle = document.createElement("div");
+      handle.className = "muted";
+      handle.style.fontSize = "11px";
+      handle.textContent = item.roblox_username ? "@" + item.roblox_username : "Username unavailable";
+      player.append(handle, name);
+
+      const userId = document.createElement("td");
+      userId.dataset.label = "User ID";
+      userId.textContent = String(item.roblox_user_id || "Unavailable");
+
+      const status = document.createElement("td");
+      status.dataset.label = "Status";
+      const badge = document.createElement("span");
+      badge.className = item.online ? "status active" : "status";
+      badge.textContent = item.online ? "Online" : "Offline";
+      status.append(badge);
+
+      const license = document.createElement("td");
+      license.dataset.label = "License";
+      license.textContent = item.license?.key_prefix || "License deleted";
+
+      const firstSeen = document.createElement("td");
+      firstSeen.dataset.label = "First seen";
+      firstSeen.textContent = item.first_seen_at ? new Date(item.first_seen_at).toLocaleString() : "Unknown";
+
+      const lastSeen = document.createElement("td");
+      lastSeen.dataset.label = "Last seen";
+      lastSeen.textContent = item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : "Unknown";
+
+      tr.append(player, userId, status, license, firstSeen, lastSeen);
+      tbody.append(tr);
+    }
+  }
+
   function renderLicenses() {
     const query = ($("search-input")?.value || "").trim().toLowerCase();
     const statusFilter = $("status-filter")?.value || "all";
@@ -252,6 +309,7 @@
     $("bound-count").textContent = licenseCache.filter(x => !!x.bound_device_hash).length;
     renderLicenses();
     await refreshSessions();
+    await refreshHistory();
   }
 
   let sessionUpdateId = 0;
@@ -302,6 +360,14 @@
     const btn = $("refresh-sessions-btn");
     btn.disabled = true;
     try { await refreshSessions(); message("Active player list updated."); }
+    catch (error) { message(error.message); }
+    finally { btn.disabled = false; }
+  });
+
+  $("refresh-history-btn").addEventListener("click", async () => {
+    const btn = $("refresh-history-btn");
+    btn.disabled = true;
+    try { await refreshHistory(); message("Player history updated."); }
     catch (error) { message(error.message); }
     finally { btn.disabled = false; }
   });
@@ -363,6 +429,7 @@
   setInterval(() => {
     if (session?.access_token && !$("dashboard").hidden) {
       refreshSessions().catch(error => console.warn("Could not refresh active players:", error));
+      refreshHistory().catch(error => console.warn("Could not refresh player history:", error));
     }
   }, 8000);
 
