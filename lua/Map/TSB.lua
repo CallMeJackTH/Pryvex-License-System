@@ -1,12 +1,14 @@
 -- =========================================================================
 -- Pryvex Hub (Fixed)
 -- Super Jump = แอนิเมชันปีน + Dash
+-- + Open/Close button (Image + ลากได้อิสระ)
 -- =========================================================================
 
 local CoreGui          = game:GetService("CoreGui")
 local Players          = game:GetService("Players")
 local HttpService      = game:GetService("HttpService")
 local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer      = Players.LocalPlayer
 
 -- =========================================================================
@@ -37,6 +39,7 @@ end
 destroyOldUI("Fluent")
 destroyOldUI("Pryvex Hub")
 destroyOldUI("PryvexHub")
+destroyOldUI("PryvexOpenClose") -- ปุ่มเก่าจาก library
 
 -- =========================================================================
 -- 2. Save / Load Config
@@ -94,17 +97,123 @@ local Window = Pryvex:CreateWindow({
 _G.PryvexHubInstance = Window
 
 -- =========================================================================
--- 4. Super Jump = ปีน (Climb) + Dash
+-- 4. Open / Close Button (Image + ลากได้อิสระ)
+-- =========================================================================
+do
+    -- ลบปุ่มเก่าที่ library สร้างไว้ (TextButton)
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local oldToggle = playerGui:FindFirstChild("PryvexOpenClose")
+    if oldToggle then
+        pcall(function() oldToggle:Destroy() end)
+    end
+
+    local ICON_ID = "rbxassetid://127972121421541"
+
+    local toggleGui = Instance.new("ScreenGui")
+    toggleGui.Name = "PryvexOpenClose"
+    toggleGui.ResetOnSpawn = false
+    toggleGui.IgnoreGuiInset = true
+    toggleGui.DisplayOrder = 1000000
+    toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    toggleGui.Parent = playerGui
+
+    -- ใช้ ImageButton แทน TextButton + ขนาดจัตุรัส
+    local toggleButton = Instance.new("ImageButton")
+    toggleButton.Name = "PryvexIconButton"
+    toggleButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    toggleButton.Position = UDim2.new(1, -50, 0.5, 0) -- ขวากลางจอ
+    toggleButton.Size = UDim2.fromOffset(52, 52)       -- จัตุรัส สมส่วน
+    toggleButton.BackgroundColor3 = Color3.fromRGB(22, 24, 32)
+    toggleButton.BackgroundTransparency = 0.15
+    toggleButton.BorderSizePixel = 0
+    toggleButton.AutoButtonColor = false
+    toggleButton.Image = ICON_ID
+    toggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.ScaleType = Enum.ScaleType.Fit
+    toggleButton.ZIndex = 10
+    toggleButton.Parent = toggleGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = toggleButton
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(90, 94, 115)
+    stroke.Transparency = 0.65
+    stroke.Thickness = 1.2
+    stroke.Parent = toggleButton
+
+    -- Padding เล็กน้อยให้ไอคอนไม่ติดขอบ
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 6)
+    padding.PaddingBottom = UDim.new(0, 6)
+    padding.PaddingLeft = UDim.new(0, 6)
+    padding.PaddingRight = UDim.new(0, 6)
+    padding.Parent = toggleButton
+
+    -- ========== Drag ได้อิสระ ==========
+    local dragging = false
+    local dragStart, startPos
+    local wasDragged = false
+
+    toggleButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = toggleButton.Position
+            wasDragged = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - dragStart
+            if delta.Magnitude > 6 then
+                wasDragged = true
+            end
+            toggleButton.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            dragStart = nil
+            startPos = nil
+        end
+    end)
+
+    -- ========== Click = Toggle Open/Close ==========
+    toggleButton.Activated:Connect(function()
+        if wasDragged then
+            wasDragged = false
+            return
+        end
+        if Window and type(Window.Minimize) == "function" then
+            Window:Minimize()
+        end
+    end)
+end
+
+-- =========================================================================
+-- 5. Super Jump = ปีน (Climb) + Dash
 -- =========================================================================
 local SuperJumpActive = false
 
--- Climb
 local CLIMB_IDS = {
     "rbxassetid://180436334",
     "180436334",
 }
 
--- Dash (เดิมใส่ผิดว่าเป็นต่อย)
 local DASH_IDS = {
     "rbxassetid://10480793962",
     "10480793962",
@@ -148,7 +257,6 @@ _G.SuperJumpConnection = RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- ปีน + Dash พร้อมกัน → พุ่งขึ้น
     if hasClimb and hasDash then
         hrp.AssemblyLinearVelocity = Vector3.new(
             hrp.AssemblyLinearVelocity.X,
@@ -159,10 +267,10 @@ _G.SuperJumpConnection = RunService.Heartbeat:Connect(function()
 end)
 
 -- =========================================================================
--- 5. แท็บ UI
+-- 6. แท็บ UI (ปรับไอคอนให้สมส่วนและสื่อความหมาย)
 -- =========================================================================
-local MainTab     = Window:AddTab({ Title = "Main",     Icon = "home" })
-local FunTab      = Window:AddTab({ Title = "Fun",      Icon = "smile" })
+local MainTab     = Window:AddTab({ Title = "Main",     Icon = "house" })
+local FunTab      = Window:AddTab({ Title = "Fun",      Icon = "sparkles" })
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
 MainTab:AddParagraph({
@@ -262,5 +370,4 @@ else
     })
 end
 
-print("[Pryvex Hub] Loaded — Super Jump = Climb + Dash")
-
+print("[Pryvex Hub] Loaded — Super Jump = Climb + Dash | Open/Close button ready")
