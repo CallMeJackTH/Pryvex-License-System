@@ -1,37 +1,64 @@
 -- =========================================================================
--- Pryvex Hub (Fixed)
--- Super Jump = แอนิเมชันปีน + Dash
--- + Open/Close button (Image + ลากได้อิสระ)
+-- PRYVEX HUB | WORKSPACE
+-- Logo on top of sidebar + rounded corners + single draggable toggle
 -- =========================================================================
 
-local CoreGui          = game:GetService("CoreGui")
-local Players          = game:GetService("Players")
-local HttpService      = game:GetService("HttpService")
-local RunService       = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer      = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local LOGO_ID = "rbxassetid://127972121421541"
+local SIDEBAR_LOGO_ID = "rbxassetid://88534329518644"
 
 -- =========================================================================
--- 1. กันรันซ้อน
+-- 1. CLEANUP
 -- =========================================================================
+
 if _G.PryvexHubInstance then
-    pcall(function() _G.PryvexHubInstance:Destroy() end)
+    pcall(function()
+        _G.PryvexHubInstance:Destroy()
+    end)
     _G.PryvexHubInstance = nil
 end
 
+if type(getgenv) == "function" and getgenv().Fluent then
+    pcall(function()
+        getgenv().Fluent:Destroy()
+    end)
+end
+
 if _G.SuperJumpConnection then
-    pcall(function() _G.SuperJumpConnection:Disconnect() end)
+    pcall(function()
+        _G.SuperJumpConnection:Disconnect()
+    end)
     _G.SuperJumpConnection = nil
 end
 
+local function getParents()
+    local list = {CoreGui, PlayerGui}
+
+    if type(gethui) == "function" then
+        local ok, hui = pcall(gethui)
+        if ok and hui then
+            table.insert(list, hui)
+        end
+    end
+
+    return list
+end
+
 local function destroyOldUI(name)
-    local fromCore = CoreGui:FindFirstChild(name)
-    if fromCore then pcall(function() fromCore:Destroy() end) end
-    if LocalPlayer then
-        local pg = LocalPlayer:FindFirstChild("PlayerGui")
-        if pg then
-            local fromPg = pg:FindFirstChild(name)
-            if fromPg then pcall(function() fromPg:Destroy() end) end
+    for _, parent in ipairs(getParents()) do
+        local old = parent:FindFirstChild(name)
+
+        if old then
+            pcall(function()
+                old:Destroy()
+            end)
         end
     end
 end
@@ -39,216 +66,361 @@ end
 destroyOldUI("Fluent")
 destroyOldUI("Pryvex Hub")
 destroyOldUI("PryvexHub")
-destroyOldUI("PryvexOpenClose") -- ปุ่มเก่าจาก library
+destroyOldUI("PryvexOpenClose")
+destroyOldUI("PryvexSidebarLogo")
 
 -- =========================================================================
--- 2. Save / Load Config
+-- 2. CONFIG SYSTEM
 -- =========================================================================
+
 local ConfigFolder = "Pryvex_Hub"
-local ConfigFile   = ConfigFolder .. "/config.json"
+local ConfigFile = ConfigFolder .. "/config.json"
 
-if type(makefolder) == "function" and not isfolder(ConfigFolder) then
+if type(makefolder) == "function"
+    and type(isfolder) == "function"
+    and not isfolder(ConfigFolder) then
+
     pcall(makefolder, ConfigFolder)
 end
 
 local SavedData = {}
 
 local function SaveConfig()
-    if type(writefile) ~= "function" then return end
-    local ok, json = pcall(function()
+    if type(writefile) ~= "function" then
+        return
+    end
+
+    local success, json = pcall(function()
         return HttpService:JSONEncode(SavedData)
     end)
-    if ok and json then
+
+    if success and json then
         pcall(writefile, ConfigFile, json)
     end
 end
 
 local function LoadConfig()
-    if type(readfile) ~= "function" or type(isfile) ~= "function" then return false end
-    if not isfile(ConfigFile) then return false end
-    local ok, data = pcall(function()
+    if type(readfile) ~= "function"
+        or type(isfile) ~= "function"
+        or not isfile(ConfigFile) then
+
+        return false
+    end
+
+    local success, data = pcall(function()
         return HttpService:JSONDecode(readfile(ConfigFile))
     end)
-    if ok and type(data) == "table" then
+
+    if success and type(data) == "table" then
         SavedData = data
         return true
     end
+
     return false
 end
 
 local HasOldConfig = LoadConfig()
 
 -- =========================================================================
--- 3. โหลด UI
+-- 3. LOAD PRYVEX LIBRARY
 -- =========================================================================
+
 local URL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-Hub/fluent-clone-integration/dist/PryvexHub.lua"
-local Pryvex = loadstring(game:HttpGet(URL))()
+
+local success, Pryvex = pcall(function()
+    return loadstring(game:HttpGet(URL))()
+end)
+
+if not success or not Pryvex then
+    warn("[Pryvex] Failed to load UI Library")
+    return
+end
 
 local Window = Pryvex:CreateWindow({
-    Title       = "Pryvex Hub",
-    SubTitle    = "Workspace",
-    TabWidth    = 160,
-    Size        = UDim2.fromOffset(580, 460),
-    Acrylic     = false,
-    Theme       = "Dark",
+    Title = "Pryvex Hub",
+    SubTitle = "Workspace",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Dark",
     MinimizeKey = Enum.KeyCode.LeftControl
 })
+
+if not Window then
+    warn("[Pryvex] Window creation failed")
+    return
+end
 
 _G.PryvexHubInstance = Window
 
 -- =========================================================================
--- 4. Open / Close Button (Image + ลากได้อิสระ)
+-- 4. CREATE TABS
 -- =========================================================================
+
+local MainTab = Window:AddTab({
+    Title = "Main",
+    Icon = "home"
+})
+
+local FunTab = Window:AddTab({
+    Title = "Fun",
+    Icon = "gamepad-2"
+})
+
+local SettingsTab = Window:AddTab({
+    Title = "Settings",
+    Icon = "settings"
+})
+
+-- =========================================================================
+-- 5. SIDEBAR LOGO
+-- Rounded image corners
+-- =========================================================================
+
 do
-    -- ลบปุ่มเก่าที่ library สร้างไว้ (TextButton)
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local oldToggle = playerGui:FindFirstChild("PryvexOpenClose")
-    if oldToggle then
-        pcall(function() oldToggle:Destroy() end)
-    end
+    local TabFrame = Window.TabHolder and Window.TabHolder.Parent
 
-    local ICON_ID = "rbxassetid://127972121421541"
+    if TabFrame then
+        local LOGO_HEIGHT = 120
+        local LOGO_GAP = 10
+        local OFFSET = LOGO_HEIGHT + LOGO_GAP
 
-    local toggleGui = Instance.new("ScreenGui")
-    toggleGui.Name = "PryvexOpenClose"
-    toggleGui.ResetOnSpawn = false
-    toggleGui.IgnoreGuiInset = true
-    toggleGui.DisplayOrder = 1000000
-    toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    toggleGui.Parent = playerGui
+        -- Find original selector before creating custom frames
+        local OriginalSelector
 
-    -- ใช้ ImageButton แทน TextButton + ขนาดจัตุรัส
-    local toggleButton = Instance.new("ImageButton")
-    toggleButton.Name = "PryvexIconButton"
-    toggleButton.AnchorPoint = Vector2.new(0.5, 0.5)
-    toggleButton.Position = UDim2.new(1, -50, 0.5, 0) -- ขวากลางจอ
-    toggleButton.Size = UDim2.fromOffset(52, 52)       -- จัตุรัส สมส่วน
-    toggleButton.BackgroundColor3 = Color3.fromRGB(22, 24, 32)
-    toggleButton.BackgroundTransparency = 0.15
-    toggleButton.BorderSizePixel = 0
-    toggleButton.AutoButtonColor = false
-    toggleButton.Image = ICON_ID
-    toggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.ScaleType = Enum.ScaleType.Fit
-    toggleButton.ZIndex = 10
-    toggleButton.Parent = toggleGui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = toggleButton
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(90, 94, 115)
-    stroke.Transparency = 0.65
-    stroke.Thickness = 1.2
-    stroke.Parent = toggleButton
-
-    -- Padding เล็กน้อยให้ไอคอนไม่ติดขอบ
-    local padding = Instance.new("UIPadding")
-    padding.PaddingTop = UDim.new(0, 6)
-    padding.PaddingBottom = UDim.new(0, 6)
-    padding.PaddingLeft = UDim.new(0, 6)
-    padding.PaddingRight = UDim.new(0, 6)
-    padding.Parent = toggleButton
-
-    -- ========== Drag ได้อิสระ ==========
-    local dragging = false
-    local dragStart, startPos
-    local wasDragged = false
-
-    toggleButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = toggleButton.Position
-            wasDragged = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if not dragging then return end
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch then
-            local delta = input.Position - dragStart
-            if delta.Magnitude > 6 then
-                wasDragged = true
+        for _, child in ipairs(TabFrame:GetChildren()) do
+            if child ~= Window.TabHolder and child:IsA("Frame") then
+                OriginalSelector = child
+                break
             end
-            toggleButton.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
         end
-    end)
 
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            dragStart = nil
-            startPos = nil
-        end
-    end)
+        -- Logo container
+        local LogoFrame = Instance.new("Frame")
+        LogoFrame.Name = "PryvexSidebarBrand"
+        LogoFrame.AnchorPoint = Vector2.new(0, 0)
+        LogoFrame.Position = UDim2.fromOffset(0, 0)
+        LogoFrame.Size = UDim2.new(1, 0, 0, LOGO_HEIGHT)
+        LogoFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        LogoFrame.BorderSizePixel = 0
+        LogoFrame.ClipsDescendants = true
+        LogoFrame.ZIndex = 5
+        LogoFrame.Parent = TabFrame
 
-    -- ========== Click = Toggle Open/Close ==========
-    toggleButton.Activated:Connect(function()
-        if wasDragged then
-            wasDragged = false
-            return
+        -- Container rounded corners
+        local LogoCorner = Instance.new("UICorner")
+        LogoCorner.CornerRadius = UDim.new(0, 14)
+        LogoCorner.Parent = LogoFrame
+
+        -- Sidebar logo image
+        local LogoImage = Instance.new("ImageLabel")
+        LogoImage.Name = "PryvexLogo"
+        LogoImage.AnchorPoint = Vector2.new(0.5, 0.5)
+        LogoImage.Position = UDim2.fromScale(0.5, 0.5)
+        LogoImage.Size = UDim2.fromScale(1, 1)
+        LogoImage.BackgroundTransparency = 1
+        LogoImage.BorderSizePixel = 0
+        LogoImage.Image = SIDEBAR_LOGO_ID
+        LogoImage.ScaleType = Enum.ScaleType.Fit
+        LogoImage.ZIndex = 6
+        LogoImage.Parent = LogoFrame
+
+        -- NEW: Rounded corners for the actual logo image
+        local LogoImageCorner = Instance.new("UICorner")
+        LogoImageCorner.CornerRadius = UDim.new(0, 14)
+        LogoImageCorner.Parent = LogoImage
+
+        -- Move tab list below the logo
+        Window.TabHolder.Position = UDim2.new(0, 0, 0, OFFSET)
+        Window.TabHolder.Size = UDim2.new(1, 0, 1, -OFFSET)
+
+        -- Preserve original selector
+        if OriginalSelector then
+            local SelectorContainer = Instance.new("Frame")
+            SelectorContainer.Name = "PryvexSelectorContainer"
+            SelectorContainer.Size = UDim2.new(0, 4, 1, -OFFSET)
+            SelectorContainer.Position = UDim2.new(0, 0, 0, OFFSET)
+            SelectorContainer.BackgroundTransparency = 1
+            SelectorContainer.ClipsDescendants = false
+            SelectorContainer.ZIndex = OriginalSelector.ZIndex
+            SelectorContainer.Parent = TabFrame
+
+            OriginalSelector.Parent = SelectorContainer
         end
-        if Window and type(Window.Minimize) == "function" then
-            Window:Minimize()
-        end
-    end)
+
+        print("[Pryvex] Sidebar logo inserted with rounded corners")
+    else
+        warn("[Pryvex] Sidebar frame not found")
+    end
 end
 
 -- =========================================================================
--- 5. Super Jump = ปีน (Climb) + Dash
+-- 6. CUSTOMIZE EXISTING TOGGLE
 -- =========================================================================
+
+task.spawn(function()
+    local ToggleGui
+    local StartTime = tick()
+
+    while not ToggleGui and tick() - StartTime < 10 do
+        for _, parent in ipairs(getParents()) do
+            ToggleGui = parent:FindFirstChild("PryvexOpenClose")
+
+            if ToggleGui then
+                break
+            end
+        end
+
+        if not ToggleGui then
+            task.wait(0.1)
+        end
+    end
+
+    if not ToggleGui then
+        warn("[Pryvex] Toggle ScreenGui not found")
+        return
+    end
+
+    local ToggleButton = ToggleGui:FindFirstChild("PryvexIconButton", true)
+
+    if not (
+        ToggleButton
+        and (
+            ToggleButton:IsA("TextButton")
+            or ToggleButton:IsA("ImageButton")
+        )
+    ) then
+        warn("[Pryvex] Existing toggle button not found")
+        return
+    end
+
+    ToggleButton.AnchorPoint = Vector2.new(0, 0.5)
+    ToggleButton.Position = UDim2.new(0, 20, 0.5, 0)
+    ToggleButton.Size = UDim2.fromOffset(52, 52)
+
+    if ToggleButton:IsA("TextButton") then
+        ToggleButton.Text = ""
+        ToggleButton.TextTransparency = 1
+    else
+        ToggleButton.Image = ""
+    end
+
+    ToggleButton.BackgroundTransparency = 1
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.AutoButtonColor = false
+
+    -- Remove existing outlines
+    for _, descendant in ipairs(ToggleButton:GetDescendants()) do
+        if descendant:IsA("UIStroke") then
+            descendant:Destroy()
+        end
+    end
+
+    local ExistingStroke = ToggleButton:FindFirstChildOfClass("UIStroke")
+
+    if ExistingStroke then
+        ExistingStroke:Destroy()
+    end
+
+    local ExistingCorner = ToggleButton:FindFirstChildOfClass("UICorner")
+
+    if ExistingCorner then
+        ExistingCorner:Destroy()
+    end
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 14)
+    Corner.Parent = ToggleButton
+
+    local OldIcon = ToggleButton:FindFirstChild("PryvexToggleImage")
+
+    if OldIcon then
+        OldIcon:Destroy()
+    end
+
+    -- Custom toggle image
+    local Icon = Instance.new("ImageLabel")
+    Icon.Name = "PryvexToggleImage"
+    Icon.AnchorPoint = Vector2.new(0, 0)
+    Icon.Position = UDim2.fromScale(0, 0)
+    Icon.Size = UDim2.fromScale(1, 1)
+    Icon.BackgroundTransparency = 1
+    Icon.BorderSizePixel = 0
+    Icon.Image = LOGO_ID
+    Icon.ScaleType = Enum.ScaleType.Stretch
+    Icon.ZIndex = ToggleButton.ZIndex + 1
+    Icon.Parent = ToggleButton
+
+    local IconCorner = Instance.new("UICorner")
+    IconCorner.CornerRadius = UDim.new(0, 14)
+    IconCorner.Parent = Icon
+
+    print("[Pryvex] Toggle customized")
+end)
+
+-- =========================================================================
+-- 7. SUPER JUMP SYSTEM
+-- =========================================================================
+
 local SuperJumpActive = false
 
 local CLIMB_IDS = {
     "rbxassetid://180436334",
-    "180436334",
+    "180436334"
 }
 
 local DASH_IDS = {
     "rbxassetid://10480793962",
-    "10480793962",
+    "10480793962"
 }
 
-local function animMatches(animId, list)
-    if not animId or type(animId) ~= "string" then return false end
-    for _, id in ipairs(list) do
+local function animMatches(animId, animationList)
+    if not animId or type(animId) ~= "string" then
+        return false
+    end
+
+    for _, id in ipairs(animationList) do
         if animId == id or animId:find(id, 1, true) then
             return true
         end
     end
+
     return false
 end
 
 _G.SuperJumpConnection = RunService.Heartbeat:Connect(function()
-    if not SuperJumpActive then return end
+    if not SuperJumpActive then
+        return
+    end
 
     local character = LocalPlayer.Character
-    if not character then return end
+
+    if not character then
+        return
+    end
 
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local hrp      = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not hrp then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+
+    if not humanoid or not hrp then
+        return
+    end
 
     local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then return end
+
+    if not animator then
+        return
+    end
 
     local hasClimb = false
-    local hasDash  = false
+    local hasDash = false
 
     for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
         local anim = track.Animation
+
         if anim and anim.AnimationId then
             local id = anim.AnimationId
+
             if animMatches(id, CLIMB_IDS) then
                 hasClimb = true
             elseif animMatches(id, DASH_IDS) then
@@ -258,116 +430,152 @@ _G.SuperJumpConnection = RunService.Heartbeat:Connect(function()
     end
 
     if hasClimb and hasDash then
+        local velocity = hrp.AssemblyLinearVelocity
+
         hrp.AssemblyLinearVelocity = Vector3.new(
-            hrp.AssemblyLinearVelocity.X,
+            velocity.X,
             180,
-            hrp.AssemblyLinearVelocity.Z
+            velocity.Z
         )
     end
 end)
 
 -- =========================================================================
--- 6. แท็บ UI (ปรับไอคอนให้สมส่วนและสื่อความหมาย)
+-- 8. MAIN TAB
 -- =========================================================================
-local MainTab     = Window:AddTab({ Title = "Main",     Icon = "house" })
-local FunTab      = Window:AddTab({ Title = "Fun",      Icon = "sparkles" })
-local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
 MainTab:AddParagraph({
-    Title   = "Welcome",
+    Title = "Welcome",
     Content = "Pryvex Hub is ready."
 })
 
 local AutoFarmToggle = MainTab:AddToggle("AutoFarmToggle", {
-    Title   = "Auto Farm",
+    Title = "Auto Farm",
     Default = SavedData["AutoFarm"] == true
 })
 
 AutoFarmToggle:OnChanged(function(Value)
     SavedData["AutoFarm"] = Value
     SaveConfig()
+
     print("[Pryvex] Auto Farm " .. (Value and "ON" or "OFF"))
 end)
 
 MainTab:AddButton({
-    Title       = "Test notification",
+    Title = "Test notification",
     Description = "Check that the UI is working",
+
     Callback = function()
         Pryvex:Notify({
-            Title    = "Pryvex Hub",
-            Content  = "Interface loaded successfully.",
+            Title = "Pryvex Hub",
+            Content = "Interface loaded successfully.",
             Duration = 5
         })
     end
 })
 
+-- =========================================================================
+-- 9. FUN TAB
+-- =========================================================================
+
 FunTab:AddParagraph({
-    Title   = "Fun",
-    Content = "Super Jump: แอนิเมชันปีน + Dash พร้อมกัน = พุ่งขึ้นฟ้า"
+    Title = "Fun",
+    Content = "Super Jump: Climb + Dash animation simultaneously."
 })
 
 local SuperJumpToggle = FunTab:AddToggle("SuperJumpToggle", {
-    Title       = "Super Jump",
+    Title = "Super Jump",
     Description = "ปีนค้าง + Dash = พุ่งขึ้น",
-    Default     = SavedData["SuperJump"] == true
+    Default = SavedData["SuperJump"] == true
 })
 
 SuperJumpToggle:OnChanged(function(Value)
     SavedData["SuperJump"] = Value
-    SaveConfig()
     SuperJumpActive = Value
+    SaveConfig()
+
     print("[Pryvex] Super Jump " .. (Value and "ON" or "OFF"))
 end)
 
+-- =========================================================================
+-- 10. SETTINGS TAB
+-- =========================================================================
+
 SettingsTab:AddParagraph({
-    Title   = "Config",
-    Content = "บันทึก/ลบการตั้งค่าบนเครื่อง"
+    Title = "Config",
+    Content = "บันทึก / ลบการตั้งค่าบนเครื่อง"
 })
 
 SettingsTab:AddButton({
-    Title       = "Manual Save Config",
+    Title = "Manual Save Config",
     Description = "บันทึกการตั้งค่าปัจจุบัน",
+
     Callback = function()
         SaveConfig()
-        Pryvex:Notify({ Title = "Config", Content = "บันทึกเรียบร้อย", Duration = 3 })
+
+        Pryvex:Notify({
+            Title = "Config",
+            Content = "บันทึกเรียบร้อย",
+            Duration = 3
+        })
     end
 })
 
 SettingsTab:AddButton({
-    Title       = "Reset / Delete Config",
+    Title = "Reset / Delete Config",
     Description = "ลบไฟล์ config",
+
     Callback = function()
-        if type(delfile) == "function" and type(isfile) == "function" and isfile(ConfigFile) then
+        if type(delfile) == "function"
+            and type(isfile) == "function"
+            and isfile(ConfigFile) then
+
             pcall(delfile, ConfigFile)
             SavedData = {}
+
             Pryvex:Notify({
-                Title    = "Config",
-                Content  = "ลบแล้ว — รันสคริปต์ใหม่",
+                Title = "Config",
+                Content = "ลบแล้ว — รันสคริปต์ใหม่",
                 Duration = 4
             })
         else
             Pryvex:Notify({
-                Title    = "Config",
-                Content  = "ไม่มีไฟล์ หรือไม่รองรับ delfile",
+                Title = "Config",
+                Content = "ไม่มีไฟล์ หรือไม่รองรับ delfile",
                 Duration = 3
             })
         end
     end
 })
 
+-- =========================================================================
+-- 11. LOAD CONFIG
+-- =========================================================================
+
 if HasOldConfig then
     SuperJumpActive = SavedData["SuperJump"] == true
+
     Pryvex:Notify({
-        Title    = "Pryvex Hub",
-        Content  = "โหลดการตั้งค่าล่าสุดแล้ว",
+        Title = "Pryvex Hub",
+        Content = "โหลดการตั้งค่าล่าสุดแล้ว",
         Duration = 4
     })
 else
     Pryvex:Notify({
-        Title    = "Pryvex Hub",
-        Content  = "พร้อมใช้งาน",
+        Title = "Pryvex Hub",
+        Content = "พร้อมใช้งาน",
         Duration = 3
     })
 end
 
-print("[Pryvex Hub] Loaded — Super Jump = Climb + Dash | Open/Close button ready")
+-- =========================================================================
+-- 12. SELECT MAIN TAB
+-- =========================================================================
+
+task.defer(function()
+    pcall(function()
+        Window:SelectTab(1)
+    end)
+end)
+
+print("[Pryvex Hub] Loaded successfully")
