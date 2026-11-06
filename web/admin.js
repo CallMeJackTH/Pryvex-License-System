@@ -15,7 +15,7 @@
       themeToggle.innerHTML = dark ? "☀ <span>Light mode</span>" : "☾ <span>Dark mode</span>";
     }
     const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.content = dark ? "#171717" : "#fff9e9";
+    if (metaTheme) metaTheme.content = dark ? "#12131c" : "#1b1c29";
   }
   applyTheme(savedTheme || (prefersDark ? "dark" : "light"));
   themeToggle?.addEventListener("click", () => {
