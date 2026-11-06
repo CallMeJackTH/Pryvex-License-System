@@ -7,7 +7,7 @@
   <title>Pryvex — License Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
@@ -15,7 +15,20 @@
 </head>
 <body>
   <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
-  <main class="shell">
+  <main class="app-frame">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-mark">P</span><span><b>PRYVEX</b><small>CONTROL CENTER</small></span></a>
+      <p class="side-label">WORKSPACE</p>
+      <nav class="side-nav">
+        <a class="nav-item active" href="#dashboard"><span>◫</span>Dashboard</a>
+        <a class="nav-item" href="#licenses"><span>▤</span>Licenses</a>
+        <a class="nav-item" href="#sessions-panel"><span>⌁</span>Live sessions</a>
+        <a class="nav-item" href="#generate-panel"><span>＋</span>Generate keys</a>
+        <a class="nav-item" href="/scripts.html"><span>⌘</span>Protected Lua</a>
+      </nav>
+      <div class="side-bottom"><p class="side-label">PREFERENCES</p><a class="nav-item" href="#dashboard"><span>⚙</span>Settings</a><a class="nav-item" href="mailto:support@pryvex.dev"><span>?</span>Support</a><div class="sidebar-foot"><i></i> Secure workspace</div></div>
+    </aside>
+    <section class="workspace">
     <header class="topbar">
       <a class="brand" href="/"><span class="brand-mark">P</span><span><b>PRYVEX</b><small>LICENSE CONSOLE</small></span></a>
       <div class="topbar-right"><button id="theme-toggle" class="secondary-btn theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">☾ <span>Dark mode</span></button><a class="secondary-btn" href="/scripts.html">Protected Lua ↗</a><span class="live-dot"></span><span id="session-state" class="session-pill">Signed out</span></div>
@@ -42,7 +55,7 @@
         <article class="stat-card"><div class="stat-top"><span>Device bound</span><span class="stat-icon blue">⌁</span></div><strong id="bound-count">0</strong><small>Linked to a device ID</small></article>
       </div>
 
-      <section class="panel generate-panel">
+      <section id="generate-panel" class="panel generate-panel">
         <div class="section-title"><div><p class="eyebrow">CREATE ACCESS</p><h2>Generate new keys</h2></div><span class="section-number">01</span></div>
         <div class="generate-grid">
           <label>Quantity <input id="key-count" type="number" min="1" max="100" value="1"></label>
@@ -52,7 +65,7 @@
         <div class="generated-wrap"><div class="generated-head"><span>GENERATED KEYS</span><span>Shown once — save securely</span></div><textarea id="generated-keys" rows="3" readonly placeholder="Your new Premium keys will appear here…"></textarea><button id="copy-keys-btn" class="secondary-btn">Copy keys</button></div>
       </section>
 
-      <section class="panel sessions-panel">
+      <section id="sessions-panel" class="panel sessions-panel">
         <div class="section-title license-heading">
           <div><p class="eyebrow">LIVE CONNECTIONS</p><h2>Players using keys</h2></div>
           <button id="refresh-sessions-btn" class="secondary-btn">↻ Refresh players</button>
