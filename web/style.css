@@ -162,3 +162,80 @@ footer span:first-child{font:900 10px "Space Grotesk",monospace;letter-spacing:.
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+/* Dark theme — toggled from the top bar; the Neobrutalist borders and shadows remain. */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#111318;
+  --ink:#f5f2e9;
+  --muted:#c0bdaf;
+  --line:#f5f2e9;
+  --yellow:#5b4a12;
+  --pink:#54263c;
+  --lime:#29431c;
+  --blue:#173e4a;
+  --white:#1d2028;
+  --shadow:4px 4px 0 #000;
+}
+:root[data-theme="dark"] html,
+:root[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .table-wrap,
+:root[data-theme="dark"] .generated-wrap,
+:root[data-theme="dark"] .login-panel,
+:root[data-theme="dark"] .search-box,
+:root[data-theme="dark"] .filters select,
+:root[data-theme="dark"] .generate-grid input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .text-btn{background:var(--white);color:var(--ink)}
+:root[data-theme="dark"] .stat-card:nth-child(1){background:#514315}
+:root[data-theme="dark"] .stat-card:nth-child(2){background:#29431c}
+:root[data-theme="dark"] .stat-card:nth-child(3){background:#54263c}
+:root[data-theme="dark"] .login-panel{background:#34202c}
+:root[data-theme="dark"] .login-symbol,
+:root[data-theme="dark"] .brand-mark,
+:root[data-theme="dark"] .section-number{background:#5b4a12;color:#fff4c2}
+:root[data-theme="dark"] .generated-wrap{background:#173e4a}
+:root[data-theme="dark"] .primary-btn{background:#5b4a12;color:#fff4c2}
+:root[data-theme="dark"] .secondary-btn{background:#173e4a;color:#d8f7ff}
+:root[data-theme="dark"] .secondary-btn:hover{background:#205365}
+:root[data-theme="dark"] .session-pill{background:#29431c;color:#e4ffd3}
+:root[data-theme="dark"] .heading-chip{background:#173e4a;color:#d8f7ff}
+:root[data-theme="dark"] .page-heading h1 span{background:#5b4a12;color:#fff4c2}
+:root[data-theme="dark"] .eyebrow,
+:root[data-theme="dark"] .brand small,
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .subheading,
+:root[data-theme="dark"] .sessions-note,
+:root[data-theme="dark"] footer{color:var(--muted)}
+:root[data-theme="dark"] .login-panel .muted{color:#e2d8dc}
+:root[data-theme="dark"] .inline-message{color:#ff9bbd}
+:root[data-theme="dark"] th{background:#514315;color:#fff4c2;border-color:var(--ink)}
+:root[data-theme="dark"] td{color:var(--ink);border-color:#555967}
+:root[data-theme="dark"] tbody tr:hover{background:#292d38}
+:root[data-theme="dark"] .license-code,
+:root[data-theme="dark"] .player-name,
+:root[data-theme="dark"] .job-id-cell code{color:var(--ink)}
+:root[data-theme="dark"] .status{background:#292d38;color:#f5f2e9}
+:root[data-theme="dark"] .status.active{background:#29431c;color:#e4ffd3}
+:root[data-theme="dark"] .status.disabled,
+:root[data-theme="dark"] .status.banned{background:#54263c;color:#ffd8e7}
+:root[data-theme="dark"] .copy-key-btn{background:#29431c;color:#e4ffd3}
+:root[data-theme="dark"] .copy-key-btn:hover{background:#514315}
+:root[data-theme="dark"] .actions .danger,
+:root[data-theme="dark"] .sessions-table .danger{background:#54263c;color:#ffd8e7}
+:root[data-theme="dark"] .toast:not(:empty){background:#29431c;color:#e4ffd3}
+:root[data-theme="dark"] .generated-head,
+:root[data-theme="dark"] .stat-top,
+:root[data-theme="dark"] .stat-card small{color:var(--ink)}
+:root[data-theme="dark"] .search-box input,
+:root[data-theme="dark"] .filters select,
+:root[data-theme="dark"] textarea{color:var(--ink)}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder{color:#aaa69a}
+:root[data-theme="dark"] footer{border-color:var(--ink)}
+:root[data-theme="dark"] footer span:first-child{color:var(--ink)}
+.theme-toggle{white-space:nowrap}
+@media(max-width:420px){.theme-toggle span{display:none}}
