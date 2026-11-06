@@ -1,6 +1,29 @@
 (() => {
   const cfg = window.PRYVEX_CONFIG;
   const $ = (id) => document.getElementById(id);
+
+  // Theme preference: saved locally on this device.
+  const themeToggle = $("theme-toggle");
+  const savedTheme = localStorage.getItem("pryvex-theme");
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  function applyTheme(theme) {
+    const dark = theme === "dark";
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    if (themeToggle) {
+      themeToggle.setAttribute("aria-pressed", String(dark));
+      themeToggle.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+      themeToggle.innerHTML = dark ? "☀ <span>Light mode</span>" : "☾ <span>Dark mode</span>";
+    }
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.content = dark ? "#171717" : "#fff9e9";
+  }
+  applyTheme(savedTheme || (prefersDark ? "dark" : "light"));
+  themeToggle?.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("pryvex-theme", next);
+    applyTheme(next);
+  });
+
   const message = (text) => {
     $("global-message").textContent = text || "";
     if (text) {
