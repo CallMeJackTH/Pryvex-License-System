@@ -101,7 +101,7 @@ print("[Pryvex] Premium license verified.")
 -- Fill each URL below when the corresponding map script is ready.
 do
     local mapScripts = {
-        ["136801880565837"] = { Name = "[FPS] Flick", URL = "" },
+        ["136801880565837"] = { Name = "[FPS] Flick", URL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/refs/heads/main/lua/Map/Flick.lua" },
         ["10449761463"] = { Name = "The Strongest Battlegrounds", URL = "https://raw.githubusercontent.com/CallMeJackTH/Pryvex-License-System/refs/heads/main/lua/Map/TSB.lua" },
         ["93978595733734"] = { Name = "[Treatment] Severity Zone", URL = "" },
         ["107778070777162"] = { Name = "Steal An Egg", URL = "" },
