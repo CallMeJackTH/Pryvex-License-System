@@ -85,14 +85,12 @@ const usable = row =>
  (!row.expires_at || new Date(row.expires_at).getTime() > Date.now());
 
 async function owned(discordId) {
- const { data, error } = await db
-  .from("license_keys")
+ const { data, error } = await db.from("license_keys")
   .select("id,key_prefix,key_encrypted,status,expires_at,bound_device_hash,discord_id_label")
   .eq("discord_id_label", discordId)
-  .maybeSingle();
-
+  .order("created_at", { ascending: false });
  if (error) throw error;
- return data;
+ return data || [];
 }
 
 async function audit(id, event_type, detail) {
@@ -248,16 +246,12 @@ client.on(Events.InteractionCreate, async i => {
     const embed = new EmbedBuilder()
      .setColor(usable(lic) ? 0x6b2fa0 : 0xd64545)
      .setTitle("PRYVEX LICENSE")
-     .setDescription("Manage your license.")
-     .addFields(
-      { name: "Key", value: lic.key_prefix || "PRYVEX-********", inline: true },
-      { name: "Status", value: usable(lic) ? "ACTIVE" : String(lic.status).toUpperCase(), inline: true },
-      { name: "Device", value: lic.bound_device_hash ? "BOUND" : "UNBOUND", inline: true },
-      {
-       name: "Expires",
-       value: lic.expires_at ? new Date(lic.expires_at).toLocaleString("en-US") : "Never"
-      }
-     );
+     .setDescription("You own **" + licenses.length + "** license(s). Choose an action, then select the license to use.\nActive: **" + activeCount + "**")
+     .addFields(licenses.slice(0, 10).map((lic, index) => ({
+      name: "License " + (index + 1),
+      value: (lic.key_prefix || "PRYVEX-********") + " · " + String(lic.status).toUpperCase(),
+      inline: true
+     })));
 
     const row = new ActionRowBuilder().addComponents(
      new ButtonBuilder()
@@ -275,47 +269,46 @@ client.on(Events.InteractionCreate, async i => {
   }
 
   if (i.isButton() && i.customId.startsWith("pryvex:")) {
+   const action = i.customId === "pryvex:getscript" ? "getscript" :
+    i.customId === "pryvex:resethwid" ? "resethwid" : null;
+   if (!action) return;
+   const available = (await owned(i.user.id)).filter(usable);
+   if (!available.length) return i.reply({ content: "No active license was found. Your keys may be expired, disabled, or banned.", flags: MessageFlags.Ephemeral });
+   const menu = new StringSelectMenuBuilder().setCustomId("pryvex:select:" + action)
+    .setPlaceholder("Select a license key")
+    .addOptions(available.slice(0, 25).map((lic, index) => ({
+     label: (lic.key_prefix || "License " + (index + 1)).slice(0, 100),
+     description: "Status: " + String(lic.status).toUpperCase(), value: lic.id
+    })));
+   return i.reply({
+    content: available.length > 25 ? "Select an active license (showing the first 25)." : "Select the license you want to " + (action === "getscript" ? "download" : "reset the device for") + ".",
+    components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral
+   });
+  }
+
+  if (i.isStringSelectMenu() && i.customId.startsWith("pryvex:select:")) {
    await i.deferReply({ flags: MessageFlags.Ephemeral });
-
-   const lic = await owned(i.user.id);
-   if (!lic || !usable(lic)) {
-    return i.editReply("No active license was found, or your key has expired or been disabled.");
-   }
-
-   if (i.customId === "pryvex:getscript") {
+   const action = i.customId.slice("pryvex:select:".length);
+   if (!["getscript", "resethwid"].includes(action)) return i.editReply("Invalid action.");
+   const lic = (await owned(i.user.id)).find(item => item.id === i.values[0]);
+   if (!lic || !usable(lic)) return i.editReply("This license is unavailable, expired, disabled, or not owned by your account.");
+   if (action === "getscript") {
     const fullKey = decryptKey(lic.key_encrypted);
     const lua = [
      'getgenv().Key = "' + fullKey + '" -- Your license key',
-     'getgenv().PryvexHandoffCode = "' + HANDOFF_CODE + '"',
-     "",
-     "loadstring(game:HttpGet(",
-     '    "' + LOADER_URL + '"',
-     "))()"
+     'getgenv().PryvexHandoffCode = "' + HANDOFF_CODE + '"', "",
+     "loadstring(game:HttpGet(", '    "' + LOADER_URL + '"', "))()"
     ].join("\n");
-
     await audit(lic.id, "discord_get_script", { discord_user_id: i.user.id });
-    return i.editReply({
-     content: "Your personal Lua script is ready to download:",
-     files: [{ attachment: Buffer.from(lua), name: "PryvexLoader.lua" }]
-    });
+    return i.editReply({ content: "Your personal Lua script is ready to download:", files: [{ attachment: Buffer.from(lua), name: "PryvexLoader.lua" }] });
    }
-
-   if (i.customId === "pryvex:resethwid") {
-    const { error } = await db
-     .from("license_keys")
-     .update({
-      bound_device_hash: null,
-      updated_at: new Date().toISOString()
-     })
-     .eq("id", lic.id)
-     .eq("discord_id_label", i.user.id);
-
+   if (action === "resethwid") {
+    const { error } = await db.from("license_keys").update({
+     bound_device_hash: null, updated_at: new Date().toISOString()
+    }).eq("id", lic.id).eq("discord_id_label", i.user.id);
     if (error) throw error;
-
     await audit(lic.id, "discord_reset_hwid", { discord_user_id: i.user.id });
-    return i.editReply(
-     "HWID reset successfully! Your next script launch will bind the new device."
-    );
+    return i.editReply("HWID reset successfully! Your next script launch will bind the new device.");
    }
   }
  } catch (error) {
