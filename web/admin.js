@@ -324,6 +324,77 @@
     }
   }
 
+  async function refreshUsers() {
+    const data = await api("list_users");
+    const users = data.users || [];
+    const root = $("discord-users-list");
+    root.replaceChildren();
+    if (!users.length) {
+      const empty = document.createElement("p");
+      empty.className = "muted";
+      empty.textContent = "No Discord-linked users yet.";
+      root.append(empty);
+      return;
+    }
+    for (const user of users) {
+      const card = document.createElement("article");
+      card.className = "panel discord-user-card";
+      const head = document.createElement("div");
+      head.className = "section-title";
+      const identity = document.createElement("div");
+      const name = document.createElement("h3");
+      name.textContent = user.discord_name || "Discord user";
+      const id = document.createElement("p");
+      id.className = "muted";
+      id.textContent = "Discord ID: " + user.discord_id;
+      identity.append(name, id);
+      const ban = document.createElement("button");
+      ban.type = "button";
+      ban.className = "danger";
+      ban.textContent = "Ban member";
+      ban.addEventListener("click", async () => {
+        if (!confirm("Ban all licenses belonging to Discord ID " + user.discord_id + "? This action does not ban the member from Discord itself.")) return;
+        ban.disabled = true;
+        try {
+          const result = await api("ban_user_keys", { discord_id: user.discord_id, reason: "Banned by administrator" });
+          message("Banned " + (result.banned_keys || 0) + " license key(s). Discord server ban is not connected yet.");
+          await refreshUsers();
+          await refresh();
+        } catch (error) { message(error.message); }
+        finally { ban.disabled = false; }
+      });
+      head.append(identity, ban);
+      card.append(head);
+      const list = document.createElement("div");
+      list.className = "discord-user-keys";
+      for (const key of user.keys || []) {
+        const row = document.createElement("div");
+        row.className = "discord-user-key";
+        const label = document.createElement("span");
+        label.textContent = (key.key_prefix || "License") + " · " + String(key.status || "unknown").toUpperCase();
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Delete key";
+        remove.addEventListener("click", async () => {
+          if (!confirm("Delete this license key permanently?")) return;
+          remove.disabled = true;
+          try {
+            await api("delete", { license_id: key.id });
+            message("License key deleted.");
+            await refreshUsers();
+            await refresh();
+          } catch (error) { message(error.message); }
+          finally { remove.disabled = false; }
+        });
+        row.append(label, remove);
+        list.append(row);
+      }
+      card.append(list);
+      root.append(card);
+    }
+  }
+
   async function refresh() {
     const data = await api("list");
     licenseCache = data.licenses || [];
@@ -391,6 +462,14 @@
     const btn = $("refresh-history-btn");
     btn.disabled = true;
     try { await refreshHistory(); message("Player history updated."); }
+    catch (error) { message(error.message); }
+    finally { btn.disabled = false; }
+  });
+
+  $("refresh-users-btn")?.addEventListener("click", async () => {
+    const btn = $("refresh-users-btn");
+    btn.disabled = true;
+    try { await refreshUsers(); message("Discord user list updated."); }
     catch (error) { message(error.message); }
     finally { btn.disabled = false; }
   });
