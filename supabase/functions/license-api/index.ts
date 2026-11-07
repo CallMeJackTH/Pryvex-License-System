@@ -283,59 +283,10 @@ Deno.serve(async (req) => {
 
     // Discord bot: return a license key only to the Discord account bound to it.
     if (action === "discord_get_script") {
-      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+      if (req.headers.get("Authorization") !== \`Bearer \${SERVICE_ROLE_KEY}\`) {
         return json({ success: false, code: "BOT_UNAUTHORIZED" }, 401, origin);
       }
-      if (action === "list_users") {
-      const { data: rows, error } = await db.from("license_keys")
-        .select("id,key_prefix,status,expires_at,bound_device_hash,discord_id_label,created_at,last_verified_at")
-        .not("discord_id_label", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (error) throw error;
-      const grouped = new Map<string, any>();
-      for (const row of rows ?? []) {
-        const discordId = String(row.discord_id_label);
-        if (!grouped.has(discordId)) grouped.set(discordId, { discord_id: discordId, keys: [] });
-        grouped.get(discordId).keys.push({
-          id: row.id, key_prefix: row.key_prefix, status: row.status,
-          expires_at: row.expires_at, device_bound: Boolean(row.bound_device_hash),
-          created_at: row.created_at, last_verified_at: row.last_verified_at
-        });
-      }
-      return json({ users: [...grouped.values()] }, 200, origin);
-    }
-
-    // Discord bot-only action: revoke every license owned by a Discord member.
-    if (action === "discord_ban_user") {
-      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
-        return json({ success: false, code: "BOT_UNAUTHORIZED" }, 401, origin);
-      }
-      const discordId = String(body.discord_id ?? "");
-      const reason = String(body.reason ?? "Banned from Discord server").slice(0, 300);
-      if (!/^\\d{17,20}$/.test(discordId)) {
-        return json({ success: false, code: "DISCORD_ID_INVALID" }, 400, origin);
-      }
-      const { data: ownedKeys, error: lookupError } = await db.from("license_keys")
-        .select("id,status").eq("discord_id_label", discordId);
-      if (lookupError) throw lookupError;
-      const ids = (ownedKeys ?? []).map((item: any) => item.id);
-      if (ids.length) {
-        const { error: banError } = await db.from("license_keys")
-          .update({ status: "banned", updated_at: new Date().toISOString() })
-          .in("id", ids);
-        if (banError) throw banError;
-        const events = ids.map((id: string) => ({
-          license_id: id, event_type: "discord_member_banned",
-          detail: { discord_user_id: discordId, reason }
-        }));
-        const { error: auditError } = await db.from("license_events").insert(events);
-        if (auditError) throw auditError;
-      }
-      return json({ success: true, banned_keys: ids.length }, 200, origin);
-    }
-
-    const licenseId = String(body.license_id ?? "");
+      const licenseId = String(body.license_id ?? "");
       const discordId = String(body.discord_id ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(licenseId) || !/^\d{17,20}$/.test(discordId)) {
         return json({ success: false, code: "REQUEST_INVALID" }, 400, origin);
@@ -356,6 +307,46 @@ Deno.serve(async (req) => {
 
     // All actions below require an authenticated Discord admin.
     await requireAdmin(req);
+
+    if (action === "list_users") {
+      const { data: rows, error } = await db.from("license_keys")
+        .select("id,key_prefix,status,expires_at,bound_device_hash,discord_id_label,created_at,last_verified_at")
+        .not("discord_id_label", "is", null)
+        .order("created_at", { ascending: false }).limit(2000);
+      if (error) throw error;
+      const grouped = new Map<string, any>();
+      for (const row of rows ?? []) {
+        const discordId = String(row.discord_id_label);
+        if (!grouped.has(discordId)) grouped.set(discordId, { discord_id: discordId, discord_name: null, keys: [] });
+        grouped.get(discordId).keys.push({
+          id: row.id, key_prefix: row.key_prefix, status: row.status,
+          expires_at: row.expires_at, device_bound: Boolean(row.bound_device_hash),
+          created_at: row.created_at, last_verified_at: row.last_verified_at
+        });
+      }
+      return json({ users: [...grouped.values()] }, 200, origin);
+    }
+
+    if (action === "ban_user_keys") {
+      const discordId = String(body.discord_id ?? "");
+      if (!/^\\d{17,20}$/.test(discordId)) return json({ error: "Invalid Discord user ID" }, 400, origin);
+      const { data: ownedKeys, error: lookupError } = await db.from("license_keys")
+        .select("id").eq("discord_id_label", discordId);
+      if (lookupError) throw lookupError;
+      const ids = (ownedKeys ?? []).map((item: any) => item.id);
+      if (ids.length) {
+        const { error: banError } = await db.from("license_keys")
+          .update({ status: "banned", updated_at: new Date().toISOString() }).in("id", ids);
+        if (banError) throw banError;
+        const { error: auditError } = await db.from("license_events").insert(ids.map((id: string) => ({
+          license_id: id, event_type: "discord_member_banned",
+          detail: { discord_user_id: discordId, reason: String(body.reason ?? "Banned by administrator").slice(0, 300) }
+        })));
+        if (auditError) throw auditError;
+      }
+      return json({ success: true, banned_keys: ids.length }, 200, origin);
+    }
+
 
     if (action === "generate") {
       const requestedCount = Number(body.count ?? 1);
