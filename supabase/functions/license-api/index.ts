@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
 
     // Discord bot: return a license key only to the Discord account bound to it.
     if (action === "discord_get_script") {
-      if (req.headers.get("Authorization") !== \`Bearer \${SERVICE_ROLE_KEY}\`) {
+      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
         return json({ success: false, code: "BOT_UNAUTHORIZED" }, 401, origin);
       }
       const licenseId = String(body.license_id ?? "");
