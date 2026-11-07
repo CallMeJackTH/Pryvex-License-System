@@ -224,6 +224,136 @@ Deno.serve(async (req) => {
       }, 200, origin);
     }
 
+    // Discord bot redemption: authenticated with the Supabase service-role secret.
+    // Hashing happens here, using the same KEY_HASH_SECRET as key generation.
+    if (action === "discord_redeem") {
+      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+        return json({ success: false, code: "BOT_UNAUTHORIZED", error: "Unauthorized" }, 401, origin);
+      }
+
+      const licenseKey = String(body.key ?? "").trim().toUpperCase();
+      const discordId = String(body.discord_id ?? "").trim();
+
+      if (!/^PRYVEX-[A-Z0-9-]{12,64}$/.test(licenseKey)) {
+        return json({ success: false, code: "KEY_FORMAT", error: "Invalid license key format" }, 400, origin);
+      }
+      if (!/^\d{17,20}$/.test(discordId)) {
+        return json({ success: false, code: "DISCORD_ID_INVALID", error: "Invalid Discord user ID" }, 400, origin);
+      }
+
+      const keyHash = await hmacHex(KEY_HASH_SECRET, licenseKey);
+      const { data: license, error: lookupError } = await db.from("license_keys")
+        .select("id,status,expires_at,discord_id_label")
+        .eq("key_hash", keyHash)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      if (!license) {
+        return json({ success: false, code: "KEY_INVALID", error: "ไม่พบ License Key นี้" }, 404, origin);
+      }
+      if (license.status !== "active") {
+        return json({ success: false, code: "KEY_INACTIVE", error: "คีย์ถูกปิดใช้งานหรือถูกแบนแล้ว" }, 403, origin);
+      }
+      if (license.expires_at && new Date(license.expires_at).getTime() <= Date.now()) {
+        return json({ success: false, code: "KEY_EXPIRED", error: "คีย์หมดอายุแล้ว" }, 403, origin);
+      }
+      if (license.discord_id_label && license.discord_id_label !== discordId) {
+        return json({ success: false, code: "KEY_BOUND", error: "คีย์นี้ถูกผูกกับ Discord บัญชีอื่นแล้ว" }, 409, origin);
+      }
+
+      const { data: linked, error: linkError } = await db.from("license_keys")
+        .update({ discord_id_label: discordId, updated_at: new Date().toISOString() })
+        .eq("id", license.id)
+        .or(`discord_id_label.is.null,discord_id_label.eq.${discordId}`)
+        .select("id")
+        .maybeSingle();
+      if (linkError) throw linkError;
+      if (!linked) {
+        return json({ success: false, code: "KEY_BOUND", error: "คีย์นี้ถูกผูกกับ Discord บัญชีอื่นแล้ว" }, 409, origin);
+      }
+
+      await db.from("license_events").insert({
+        license_id: license.id,
+        event_type: "discord_redeem",
+        detail: { discord_user_id: discordId }
+      });
+
+      return json({ success: true, code: "REDEEMED" }, 200, origin);
+    }
+
+    // Discord bot: return a license key only to the Discord account bound to it.
+    if (action === "discord_get_script") {
+      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+        return json({ success: false, code: "BOT_UNAUTHORIZED" }, 401, origin);
+      }
+      if (action === "list_users") {
+      const { data: rows, error } = await db.from("license_keys")
+        .select("id,key_prefix,status,expires_at,bound_device_hash,discord_id_label,created_at,last_verified_at")
+        .not("discord_id_label", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      const grouped = new Map<string, any>();
+      for (const row of rows ?? []) {
+        const discordId = String(row.discord_id_label);
+        if (!grouped.has(discordId)) grouped.set(discordId, { discord_id: discordId, keys: [] });
+        grouped.get(discordId).keys.push({
+          id: row.id, key_prefix: row.key_prefix, status: row.status,
+          expires_at: row.expires_at, device_bound: Boolean(row.bound_device_hash),
+          created_at: row.created_at, last_verified_at: row.last_verified_at
+        });
+      }
+      return json({ users: [...grouped.values()] }, 200, origin);
+    }
+
+    // Discord bot-only action: revoke every license owned by a Discord member.
+    if (action === "discord_ban_user") {
+      if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+        return json({ success: false, code: "BOT_UNAUTHORIZED" }, 401, origin);
+      }
+      const discordId = String(body.discord_id ?? "");
+      const reason = String(body.reason ?? "Banned from Discord server").slice(0, 300);
+      if (!/^\\d{17,20}$/.test(discordId)) {
+        return json({ success: false, code: "DISCORD_ID_INVALID" }, 400, origin);
+      }
+      const { data: ownedKeys, error: lookupError } = await db.from("license_keys")
+        .select("id,status").eq("discord_id_label", discordId);
+      if (lookupError) throw lookupError;
+      const ids = (ownedKeys ?? []).map((item: any) => item.id);
+      if (ids.length) {
+        const { error: banError } = await db.from("license_keys")
+          .update({ status: "banned", updated_at: new Date().toISOString() })
+          .in("id", ids);
+        if (banError) throw banError;
+        const events = ids.map((id: string) => ({
+          license_id: id, event_type: "discord_member_banned",
+          detail: { discord_user_id: discordId, reason }
+        }));
+        const { error: auditError } = await db.from("license_events").insert(events);
+        if (auditError) throw auditError;
+      }
+      return json({ success: true, banned_keys: ids.length }, 200, origin);
+    }
+
+    const licenseId = String(body.license_id ?? "");
+      const discordId = String(body.discord_id ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(licenseId) || !/^\d{17,20}$/.test(discordId)) {
+        return json({ success: false, code: "REQUEST_INVALID" }, 400, origin);
+      }
+      const { data: license, error } = await db.from("license_keys")
+        .select("id,status,expires_at,key_encrypted,discord_id_label")
+        .eq("id", licenseId).eq("discord_id_label", discordId).maybeSingle();
+      if (error) throw error;
+      if (!license || license.status !== "active") {
+        return json({ success: false, code: "LICENSE_UNAVAILABLE" }, 403, origin);
+      }
+      if (license.expires_at && new Date(license.expires_at).getTime() <= Date.now()) {
+        return json({ success: false, code: "KEY_EXPIRED" }, 403, origin);
+      }
+      const key = await decryptLicenseKey(String(license.key_encrypted ?? ""));
+      return json({ success: true, key }, 200, origin);
+    }
+
     // All actions below require an authenticated Discord admin.
     await requireAdmin(req);
 
