@@ -21,6 +21,7 @@
       <p class="side-label">WORKSPACE</p>
       <nav class="side-nav">
         <a class="nav-item active" href="#dashboard"><span>◫</span>Dashboard</a>
+        <a class="nav-item" href="#users-panel"><span>♙</span>Users</a>
         <a class="nav-item" href="#licenses"><span>▤</span>Licenses</a>
         <a class="nav-item" href="#sessions-panel"><span>⌁</span>Live sessions</a>
         <a class="nav-item" href="#generate-panel"><span>＋</span>Generate keys</a>
@@ -81,6 +82,15 @@
         </div>
         <p class="muted sessions-note">All Roblox accounts that have used a Pryvex license. Online status is updated automatically.</p>
         <div class="table-wrap"><table class="sessions-table"><thead><tr><th>ROBLOX PLAYER</th><th>USER ID</th><th>STATUS</th><th>LICENSE</th><th>FIRST SEEN</th><th>LAST SEEN</th></tr></thead><tbody id="history-rows"><tr><td colspan="6">Loading player history…</td></tr></tbody></table></div>
+      </section>
+
+      <section id="users-panel" class="panel sessions-panel">
+        <div class="section-title license-heading">
+          <div><p class="eyebrow">DISCORD DIRECTORY</p><h2>Users &amp; licenses</h2></div>
+          <button id="refresh-users-btn" class="secondary-btn">↻ Refresh users</button>
+        </div>
+        <p class="muted sessions-note">Discord accounts and every license linked to each account. Discord names are not stored yet, so the Discord ID is shown as the reliable identifier.</p>
+        <div id="discord-users-list" class="discord-users-list"><p class="muted">Loading Discord users…</p></div>
       </section>
 
       <section class="panel licenses-panel">
