@@ -803,6 +803,7 @@ local function CreateMobileFlickButton()
     lockBtn.Activated:Connect(function()
         if lockDragged() then return end
         FlickBtnPosLocked = not FlickBtnPosLocked
+        HoldBtnPosLocked = FlickBtnPosLocked
         refreshLockVisual()
     end)
 
@@ -1006,7 +1007,7 @@ HomeTab:AddButton({
 -- Flick Mode
 AimbotTab:AddParagraph({
     Title = "[FPS] Flick",
-    Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK pos)."
+    Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK + HOLD pos)."
 })
 
 
@@ -1056,15 +1057,7 @@ AimbotTab:AddDropdown("PCHoldBind", {
 
 AimbotTab:AddParagraph({
     Title = "Mobile Button Locks",
-    Content = "Freeze button positions so they cannot be dragged"
-})
-
-AimbotTab:AddToggle("LockHoldBtnPos", {
-    Title = "Lock HOLD Button Position",
-    Default = false,
-    Callback = function(value)
-        HoldBtnPosLocked = value
-    end
+    Content = "Press the blue LOCK button to freeze FLICK + HOLD positions"
 })
 
 AimbotTab:AddDropdown("FlickBind", {
