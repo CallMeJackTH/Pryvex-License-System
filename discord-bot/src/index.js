@@ -5,6 +5,7 @@ import {
  ButtonBuilder,
  ButtonStyle,
  Client,
+ StringSelectMenuBuilder,
  EmbedBuilder,
  Events,
  GatewayIntentBits,
@@ -238,13 +239,14 @@ client.on(Events.InteractionCreate, async i => {
    if (i.commandName === "license") {
     await i.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const lic = await owned(i.user.id);
-    if (!lic) {
+    const licenses = await owned(i.user.id);
+    if (!licenses.length) {
      return i.editReply("No license is linked to this account. Please use /redeem first.");
     }
+    const activeCount = licenses.filter(usable).length;
 
     const embed = new EmbedBuilder()
-     .setColor(usable(lic) ? 0x6b2fa0 : 0xd64545)
+     .setColor(activeCount > 0 ? 0x6b2fa0 : 0xd64545)
      .setTitle("PRYVEX LICENSE")
      .setDescription("You own **" + licenses.length + "** license(s). Choose an action, then select the license to use.\nActive: **" + activeCount + "**")
      .addFields(licenses.slice(0, 10).map((lic, index) => ({
