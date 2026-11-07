@@ -468,6 +468,7 @@ local FlickKeyKeyboard = Enum.KeyCode.E
 
 local PCHoldEnabled = false
 local PCHoldActive = false
+local MobileHoldActive = false
 local PCHoldUseMouse = true
 local PCHoldKeyMouse = Enum.UserInputType.MouseButton2
 local PCHoldKeyKeyboard = Enum.KeyCode.Q
@@ -475,6 +476,7 @@ local PCHoldKeyKeyboard = Enum.KeyCode.Q
 -- Mobile button position locks (menu-controlled)
 local FlickBtnPosLocked = false
 local LockBtnPosLocked = false
+local HoldBtnPosLocked = false
 
 local HitboxConfig = { Enabled = false, Scale = 0.9 }
 local HitboxOriginal = {}
@@ -804,10 +806,51 @@ local function CreateMobileFlickButton()
         refreshLockVisual()
     end)
 
+
+    -- ORANGE HOLD = hold to keep aim locked (mobile)
+    local holdBtn, holdStroke = makeBtn(
+        "HoldBtn",
+        "HOLD",
+        UDim2.new(0.50, 0, 0.78, 0),
+        Color3.fromRGB(255, 160, 40)
+    )
+    local holdDragged = wireDrag(holdBtn, function()
+        return HoldBtnPosLocked
+    end)
+
+    local function setHoldVisual(on)
+        if on then
+            holdStroke.Color = Color3.fromRGB(255, 255, 255)
+            holdBtn.BackgroundColor3 = Color3.fromRGB(60, 35, 10)
+            holdBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            holdStroke.Color = Color3.fromRGB(255, 160, 40)
+            holdBtn.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
+            holdBtn.TextColor3 = Color3.fromRGB(255, 160, 40)
+        end
+    end
+
+    holdBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch
+            or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            MobileHoldActive = true
+            setHoldVisual(true)
+        end
+    end)
+
+    holdBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch
+            or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            MobileHoldActive = false
+            setHoldVisual(false)
+            holdDragged()
+        end
+    end)
+
     refreshLockVisual()
     _G.PryvexRefreshMobileLockVisual = refreshLockVisual
 
-    print("[FPS Flick] FLICK (green) + LOCK pos (blue)")
+    print("[FPS Flick] FLICK + HOLD + LOCK buttons")
 end
 
 task.defer(CreateMobileFlickButton)
@@ -963,7 +1006,7 @@ HomeTab:AddButton({
 -- Flick Mode
 AimbotTab:AddParagraph({
     Title = "[FPS] Flick",
-    Content = "Mobile: GREEN FLICK = tap/drag · BLUE LOCK = freeze FLICK button position."
+    Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK pos)."
 })
 
 
@@ -1032,6 +1075,14 @@ AimbotTab:AddToggle("LockLockBtnPos", {
     Default = false,
     Callback = function(value)
         LockBtnPosLocked = value
+    end
+})
+
+AimbotTab:AddToggle("LockHoldBtnPos", {
+    Title = "Lock HOLD Button Position",
+    Default = false,
+    Callback = function(value)
+        HoldBtnPosLocked = value
     end
 })
 
