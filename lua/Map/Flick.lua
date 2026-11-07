@@ -115,7 +115,7 @@ end
 _G.PryvexHubInstance = Window
 
 local HomeTab   = Window:AddTab({ Title = "Home",        Icon = "home" })
-local AimbotTab = Window:AddTab({ Title = "Flick Mode",  Icon = "crosshair" })
+local AimbotTab = Window:AddTab({ Title = "Aimbot Mode",  Icon = "crosshair" })
 local ESPTab    = Window:AddTab({ Title = "ESP",         Icon = "eye" })
 local MiscTab   = Window:AddTab({ Title = "Misc",        Icon = "settings" })
 
@@ -477,6 +477,7 @@ local PCHoldKeyKeyboard = Enum.KeyCode.Q
 local FlickBtnPosLocked = false
 local LockBtnPosLocked = false
 local HoldBtnPosLocked = false
+local MobileButtonsHidden = false
 
 local HitboxConfig = { Enabled = false, Scale = 0.9 }
 local HitboxOriginal = {}
@@ -686,6 +687,7 @@ local function CreateMobileFlickButton()
     gui.IgnoreGuiInset = true
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.DisplayOrder = 1000000
+    gui.Enabled = not MobileButtonsHidden
     gui.Parent = parent
 
     local function makeBtn(name, labelText, pos, color)
@@ -876,6 +878,16 @@ local function CreateMobileFlickButton()
 
     refreshLockVisual()
     _G.PryvexRefreshMobileLockVisual = refreshLockVisual
+    _G.PryvexSetMobileButtonsHidden = function(hidden)
+        MobileButtonsHidden = hidden
+        if gui and gui.Parent then
+            gui.Enabled = not hidden
+        end
+        if hidden then
+            MobileHoldActive = false
+            setHoldVisual(false)
+        end
+    end
 
     print("[FPS Flick] FLICK + HOLD + LOCK buttons")
 end
@@ -1036,6 +1048,17 @@ AimbotTab:AddParagraph({
     Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK + HOLD + LOCK pos)."
 })
 
+
+AimbotTab:AddToggle("HideMobileButtons", {
+    Title = "Hide Buttons (Mobile)",
+    Default = false,
+    Callback = function(value)
+        MobileButtonsHidden = value
+        if _G.PryvexSetMobileButtonsHidden then
+            pcall(_G.PryvexSetMobileButtonsHidden, value)
+        end
+    end
+})
 
 AimbotTab:AddParagraph({
     Title = "PC Hold Aimbot",
