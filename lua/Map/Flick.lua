@@ -599,7 +599,7 @@ end)
 pcall(function() RunService:UnbindFromRenderStep("PryvexAimbot") end)
 
 RunService:BindToRenderStep("PryvexAimbot", Enum.RenderPriority.Camera.Value + 1, function()
-    local locking = MobileLockHeld or tick() < FlickUntil
+    local locking = MobileLockHeld or MobileHoldActive or PCHoldActive or tick() < FlickUntil
     if not locking then return end
     local part = GetClosestTarget()
     if not part then return end
@@ -665,6 +665,14 @@ local function CreateMobileFlickButton()
 
     destroyOldUI("PryvexFlickButton")
 
+    if _G.PryvexMobileConns then
+        for _, c in ipairs(_G.PryvexMobileConns) do
+            pcall(function() c:Disconnect() end)
+        end
+    end
+    _G.PryvexMobileConns = {}
+    MobileHoldActive = false
+
     local parent = nil
     if type(gethui) == "function" then
         local ok, hui = pcall(gethui)
@@ -713,6 +721,17 @@ local function CreateMobileFlickButton()
 
     local function wireDrag(btn, isLockedFn)
         local dragging, dragMoved, dragStart, startPos = false, false, nil, nil
+        -- Hard lock: if the button is locked, snap it back to its last free position
+        local lockedPos = btn.Position
+        btn:GetPropertyChangedSignal("Position"):Connect(function()
+            if isLockedFn() then
+                if btn.Position ~= lockedPos then
+                    btn.Position = lockedPos
+                end
+            else
+                lockedPos = btn.Position
+            end
+        end)
         btn.InputBegan:Connect(function(input)
             if input.UserInputType ~= Enum.UserInputType.Touch
                 and input.UserInputType ~= Enum.UserInputType.MouseButton1 then
@@ -729,7 +748,7 @@ local function CreateMobileFlickButton()
                 end
             end)
         end)
-        UserInputService.InputChanged:Connect(function(input)
+        table.insert(_G.PryvexMobileConns, UserInputService.InputChanged:Connect(function(input)
             if not dragging or isLockedFn() then return end
             if input.UserInputType ~= Enum.UserInputType.Touch
                 and input.UserInputType ~= Enum.UserInputType.MouseMovement then
@@ -743,7 +762,7 @@ local function CreateMobileFlickButton()
                 startPos.X.Scale, startPos.X.Offset + delta.X,
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
-        end)
+        end))
         return function()
             local m = dragMoved
             dragMoved = false
@@ -804,6 +823,7 @@ local function CreateMobileFlickButton()
         if lockDragged() then return end
         FlickBtnPosLocked = not FlickBtnPosLocked
         HoldBtnPosLocked = FlickBtnPosLocked
+        LockBtnPosLocked = FlickBtnPosLocked
         refreshLockVisual()
     end)
 
@@ -836,6 +856,12 @@ local function CreateMobileFlickButton()
             or input.UserInputType == Enum.UserInputType.MouseButton1 then
             MobileHoldActive = true
             setHoldVisual(true)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    MobileHoldActive = false
+                    setHoldVisual(false)
+                end
+            end)
         end
     end)
 
@@ -1007,7 +1033,7 @@ HomeTab:AddButton({
 -- Flick Mode
 AimbotTab:AddParagraph({
     Title = "[FPS] Flick",
-    Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK + HOLD pos)."
+    Content = "Mobile: FLICK (green) · HOLD (orange, hold aim) · LOCK (blue, freeze FLICK + HOLD + LOCK pos)."
 })
 
 
@@ -1057,7 +1083,7 @@ AimbotTab:AddDropdown("PCHoldBind", {
 
 AimbotTab:AddParagraph({
     Title = "Mobile Button Locks",
-    Content = "Press the blue LOCK button to freeze FLICK + HOLD positions"
+    Content = "Press the blue LOCK button to freeze FLICK + HOLD + LOCK positions"
 })
 
 AimbotTab:AddDropdown("FlickBind", {
