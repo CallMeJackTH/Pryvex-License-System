@@ -687,7 +687,6 @@ local function CreateMobileFlickButton()
     gui.IgnoreGuiInset = true
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.DisplayOrder = 1000000
-    gui.Enabled = not MobileButtonsHidden
     gui.Parent = parent
 
     local function makeBtn(name, labelText, pos, color)
@@ -878,16 +877,28 @@ local function CreateMobileFlickButton()
 
     refreshLockVisual()
     _G.PryvexRefreshMobileLockVisual = refreshLockVisual
-    _G.PryvexSetMobileButtonsHidden = function(hidden)
-        MobileButtonsHidden = hidden
-        if gui and gui.Parent then
-            gui.Enabled = not hidden
-        end
-        if hidden then
-            MobileHoldActive = false
-            setHoldVisual(false)
+    -- Hide = invisible but still pressable at the same position
+    local function applyHidden(hidden)
+        local list = {
+            { flickBtn, flickStroke },
+            { lockBtn,  lockStroke },
+            { holdBtn,  holdStroke },
+        }
+        for _, pair in ipairs(list) do
+            local btn, stroke = pair[1], pair[2]
+            if btn and btn.Parent then
+                btn.BackgroundTransparency = hidden and 1 or 0.05
+                btn.TextTransparency = hidden and 1 or 0
+                stroke.Transparency = hidden and 1 or 0
+            end
         end
     end
+
+    _G.PryvexSetMobileButtonsHidden = function(hidden)
+        MobileButtonsHidden = hidden
+        applyHidden(hidden)
+    end
+    applyHidden(MobileButtonsHidden)
 
     print("[FPS Flick] FLICK + HOLD + LOCK buttons")
 end
