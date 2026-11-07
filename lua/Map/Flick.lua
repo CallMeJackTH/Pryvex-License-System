@@ -1059,25 +1059,6 @@ AimbotTab:AddParagraph({
     Content = "Freeze button positions so they cannot be dragged"
 })
 
-AimbotTab:AddToggle("LockFlickBtnPos", {
-    Title = "Lock FLICK Button Position",
-    Default = false,
-    Callback = function(value)
-        FlickBtnPosLocked = value
-        if _G.PryvexRefreshMobileLockVisual then
-            pcall(_G.PryvexRefreshMobileLockVisual)
-        end
-    end
-})
-
-AimbotTab:AddToggle("LockLockBtnPos", {
-    Title = "Lock LOCK Button Position",
-    Default = false,
-    Callback = function(value)
-        LockBtnPosLocked = value
-    end
-})
-
 AimbotTab:AddToggle("LockHoldBtnPos", {
     Title = "Lock HOLD Button Position",
     Default = false,
